@@ -11,10 +11,10 @@ import sys
 import pygame as pg
 
 from core import config as C
-from audio import load_sounds
-from controls import InputMapper
+from client.audio import load_sounds
+from client.controls import InputMapper
+from client.renderer import Renderer
 from core.world import World
-from core.utils import draw_text
 
 
 class Scene:
@@ -40,6 +40,11 @@ class Game:
 
         self.font = pg.font.SysFont("consolas", 22)
         self.big = pg.font.SysFont("consolas", 64)
+        self.renderer = Renderer(
+            self.screen,
+            config=C,
+            fonts={"font": self.font, "big": self.big},
+        )
 
         self.scene = Scene("menu")
         self.world = World()
@@ -104,52 +109,26 @@ class Game:
         self._play_events(self.world.events)
 
     def _draw(self) -> None:
-        self.screen.fill(C.BLACK)
+        self.renderer.clear()
 
         if self.scene.name == "menu":
-            self._draw_menu()
+            self.renderer.draw_menu()
             pg.display.flip()
             return
 
         if self.scene.name == "game_over":
-            self._draw_game_over()
+            self.renderer.draw_game_over()
             pg.display.flip()
             return
 
-        self.world.draw(self.screen, self.font)
+        self.renderer.draw_world(self.world)
+        self.renderer.draw_hud(
+            self.world.score,
+            self.world.lives,
+            self.world.wave,
+            self.scene.name,
+        )
         pg.display.flip()
-
-    def _draw_menu(self) -> None:
-        draw_text(
-            self.screen,
-            self.big,
-            "ASTEROIDS",
-            C.WIDTH // 2 - 170,
-            200,
-        )
-        draw_text(
-            self.screen,
-            self.font,
-            "Pressione qualquer tecla",
-            C.WIDTH // 2 - 170,
-            350,
-        )
-
-    def _draw_game_over(self) -> None:
-        draw_text(
-            self.screen,
-            self.big,
-            "GAME OVER",
-            C.WIDTH // 2 - 170,
-            260,
-        )
-        draw_text(
-            self.screen,
-            self.font,
-            "Pressione qualquer tecla",
-            C.WIDTH // 2 - 170,
-            340,
-        )
 
     def _play_events(self, events: list[str]) -> None:
         for ev in events:

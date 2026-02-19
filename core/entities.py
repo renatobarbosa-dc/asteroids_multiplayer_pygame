@@ -7,7 +7,7 @@ import pygame as pg
 
 from core import config as C
 from core.commands import PlayerCommand
-from core.utils import Vec, angle_to_vec, draw_circle, draw_poly, wrap_pos
+from core.utils import Vec, angle_to_vec, wrap_pos
 
 PlayerId = int
 UFO_BULLET_OWNER = -10
@@ -47,9 +47,6 @@ class Bullet(pg.sprite.Sprite):
             return
         self.rect.center = (int(self.pos.x), int(self.pos.y))
 
-    def draw(self, surf: pg.Surface) -> None:
-        draw_circle(surf, self.pos, self.r)
-
 
 class Asteroid(pg.sprite.Sprite):
     """Asteroide com polígono irregular."""
@@ -81,10 +78,6 @@ class Asteroid(pg.sprite.Sprite):
         self.pos += self.vel * dt
         self.pos = wrap_pos(self.pos)
         self.rect.center = (int(self.pos.x), int(self.pos.y))
-
-    def draw(self, surf: pg.Surface) -> None:
-        pts = [self.pos + p for p in self.poly]
-        pg.draw.polygon(surf, C.WHITE, pts, width=1)
 
 
 class Ship(pg.sprite.Sprite):
@@ -162,7 +155,8 @@ class Ship(pg.sprite.Sprite):
         self.pos = wrap_pos(self.pos)
         self.rect.center = (int(self.pos.x), int(self.pos.y))
 
-    def draw(self, surf: pg.Surface) -> None:
+    def ship_points(self) -> tuple[Vec, Vec, Vec]:
+        """Retorna os 3 pontos do triângulo da nave."""
         dirv = angle_to_vec(self.angle)
         left = angle_to_vec(self.angle + 140.0)
         right = angle_to_vec(self.angle - 140.0)
@@ -170,11 +164,7 @@ class Ship(pg.sprite.Sprite):
         p1 = self.pos + dirv * self.r
         p2 = self.pos + left * self.r * 0.9
         p3 = self.pos + right * self.r * 0.9
-
-        draw_poly(surf, [p1, p2, p3])
-
-        if self.invuln > 0.0 and int(self.invuln * 10) % 2 == 0:
-            draw_circle(surf, self.pos, self.r + 6)
+        return p1, p2, p3
 
 
 class UFO(pg.sprite.Sprite):
@@ -295,13 +285,3 @@ class UFO(pg.sprite.Sprite):
         self.cool = float(rate)
 
         return Bullet(UFO_BULLET_OWNER, self.pos, vel, ttl=ttl)
-
-    def draw(self, surf: pg.Surface) -> None:
-        w, h = self.r * 2, self.r
-        rect = pg.Rect(0, 0, w, h)
-        rect.center = (int(self.pos.x), int(self.pos.y))
-        pg.draw.ellipse(surf, C.WHITE, rect, width=1)
-
-        cup = pg.Rect(0, 0, int(w * 0.5), int(h * 0.7))
-        cup.center = (int(self.pos.x), int(self.pos.y - h * 0.3))
-        pg.draw.ellipse(surf, C.WHITE, cup, width=1)
