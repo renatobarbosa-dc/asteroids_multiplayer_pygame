@@ -1,31 +1,23 @@
 # ARCHITECTURE
 
-Projeto: asteroids_single-player  
-Disciplina: Desenvolvimento de Jogos Multiplayer  
-
----
+Projeto: `asteroids_single-player`
 
 ## 1. Objetivo
 
-Este documento descreve a arquitetura **atual** do projeto (single-player),
-com foco em didática, manutenção, coesão e baixo acoplamento.
+Este documento descreve a arquitetura atual real do projeto.
 
-Ele também registra uma **evolução planejada** para multiplayer, mas sem
-confundir com a estrutura que existe hoje.
+Escopo:
+- Código Python em arquivos na raiz
+- Documentação em `docs/`
+- Assets em `assets/`
 
-Regras gerais do projeto:
-
-- PEP 8 (linhas <= 79 caracteres)
-- Código didático (clareza > micro-otimização)
-- Evitar import circular
-- Separar “orquestração” (Game) de “regras” (World)
-
----
+Este projeto ainda é single-player.
 
 ## 2. Estrutura Atual do Repositório
 
 Estrutura existente hoje:
 
+```text
 asteroids_single-player/
 ├── assets/
 │   └── sounds/
@@ -40,193 +32,147 @@ asteroids_single-player/
 ├── sprites.py
 ├── systems.py
 └── utils.py
+```
 
----
+Arquivos de áudio atuais em `assets/sounds/`:
+- `asteroid_explosion.wav`
+- `player_shoot.wav`
+- `ship_explosion.wav`
+- `thrust_loop.wav`
+- `ufo_shoot.wav`
+- `ufo_siren_big.wav`
+- `ufo_siren_small.wav`
 
 ## 3. Responsabilidades por Arquivo
 
-### 3.1 main.py
+### `main.py`
 
 Ponto de entrada.
 
-Responsabilidades:
+Responsabilidades atuais:
+- Importa `Game` de `game.py`
+- Executa `Game().run()`
 
-- Inicializar o jogo chamando `Game().run()`
-- Não conter regras de jogo
+### `game.py`
 
----
+Orquestra loop, cenas e integração com pygame.
 
-### 3.2 game.py
+Responsabilidades atuais:
+- Inicialização do pygame e mixer
+- Criação de janela, relógio e fontes
+- Controle de cenas (`menu`, `play`, `game_over`)
+- Leitura de eventos e encerramento do jogo
+- Uso de `InputMapper` para converter input em comando
+- Chamada de `World.update(dt, commands)`
+- Desenho de menu, game over e mundo
+- Execução de áudio a partir de `world.events`
+- Controle de loops de áudio (thrust e sirene UFO)
 
-Camada de orquestração (loop).
+### `systems.py`
 
-Responsabilidades:
+Núcleo de regras do jogo (`World`).
 
-- Loop principal (clock, dt, eventos do pygame)
-- Estados de tela (ex.: menu / playing / game over, se existirem)
-- Capturar input via `controls.py`
-- Chamar `World.update(dt, commands)` (em `systems.py`)
-- Desenhar a cena (via pygame) e HUD
-- Tocar sons chamando `audio.py` (sem regras no áudio)
+Responsabilidades atuais:
+- Estado do jogo: naves, tiros, asteroides, UFOs, score, vidas, wave
+- Spawn de jogador, asteroides e UFO
+- Aplicação de comandos por `player_id`
+- Atualização da simulação por frame
+- Tratamento de colisões
+- Regras de pontuação, morte e game over
+- Geração de eventos de domínio em `world.events`
+- Draw do HUD e sprites do mundo
 
-Não deve:
+### `sprites.py`
 
-- Implementar colisões/score (isso é do World)
-- Criar dependências “de volta” para `systems.py`/`sprites.py`
+Entidades do jogo baseadas em `pygame.sprite.Sprite`.
 
----
+Responsabilidades atuais:
+- Classes: `Ship`, `Asteroid`, `Bullet`, `UFO`
+- Física e atualização local de cada entidade
+- Regras de tiro de `Ship` e `UFO`
+- Desenho de cada entidade (`draw`)
+- Constante `UFO_BULLET_OWNER`
 
-### 3.3 systems.py
+### `controls.py`
 
-Núcleo de regras: contém o `World` (fonte da verdade).
+Mapeamento de input para comando do jogador.
 
-Responsabilidades típicas do World:
+Responsabilidades atuais:
+- Classe `InputMapper`
+- Captura de eventos `KEYDOWN` para `shoot` e `hyperspace`
+- Leitura de teclas contínuas para rotação e thrust
+- Construção de `PlayerCommand`
 
-- Manter o estado do jogo (entidades, score, vidas, ondas)
-- Aplicar comandos do jogador (intenção)
-- Atualizar simulação (movimento, TTL, spawn)
-- Detectar e resolver colisões
-- Decidir destruições e pontuação
+### `commands.py`
 
-Regras:
+Contrato de intenção do jogador.
 
-- Evitar código de interface (menus, textos, layout)
-- Evitar tocar sons diretamente (preferir “sinalizar” para o Game)
+Responsabilidades atuais:
+- `dataclass` imutável `PlayerCommand`
+- Flags: `rotate_left`, `rotate_right`, `thrust`, `shoot`, `hyperspace`
 
----
+### `audio.py`
 
-### 3.4 sprites.py
+Carregamento de efeitos sonoros.
 
-Entidades do jogo (modelagem).
+Responsabilidades atuais:
+- `SoundPack` com referências de `pygame.mixer.Sound`
+- `load_sounds(base_path)` para carregar sons a partir de `config.py`
 
-Responsabilidades típicas:
+### `utils.py`
 
-- Definir classes de entidades (Ship, Asteroid, Bullet, UFO etc.)
-- Estado: posição, velocidade, ângulo, raio/rect
-- Atualização por `update(dt)`
+Utilitários matemáticos e de desenho.
 
-Observação importante:
+Responsabilidades atuais:
+- Alias `Vec` (`pygame.math.Vector2`)
+- Helpers de vetor e geometria (`wrap_pos`, `angle_to_vec`, etc.)
+- Helpers de desenho (`draw_poly`, `draw_circle`, `draw_text`)
 
-- Se as entidades tiverem `draw()`, isso acopla ao pygame. Hoje isso é
-  aceitável no single-player, mas deve ser extraído para um renderer
-  quando preparar multiplayer.
+### `config.py`
 
----
+Configuração central do jogo.
 
-### 3.5 controls.py
+Responsabilidades atuais:
+- Constantes de tela, FPS e IDs
+- Parâmetros de nave, tiro, asteroide e UFO
+- Cores e caminhos de assets
+- Nomes dos arquivos de som
 
-Mapeamento de input → comando.
+### `docs/`
 
-Responsabilidades:
+Documentação do projeto.
 
-- Traduzir teclado (`pygame.key.get_pressed()`) em `PlayerCommand`
-- Centralizar o “layout” de controles (esquerda/direita/impulso/tiro)
+Estado atual:
+- Contém este documento (`ARCHITECTURE.md`)
 
-Não deve:
+### `assets/`
 
-- Tomar decisões de regra (cooldown, limite de tiros, colisões)
+Recursos estáticos do jogo.
 
----
-
-### 3.6 commands.py
-
-Contrato de comando do jogador (intenção).
-
-Responsabilidades:
-
-- Definir `PlayerCommand` (ex.: left/right/thrust/shoot)
-- Ser pequeno, serializável e fácil de enviar pela rede no futuro
-
----
-
-### 3.7 audio.py
-
-Efeitos sonoros.
-
-Responsabilidades:
-
-- Carregar sons a partir de `assets/sounds/`
-- Expor funções/métodos simples para tocar sons
-- Não conter regras (por exemplo: não decidir quando toca, apenas tocar)
-
----
-
-### 3.8 utils.py
-
-Ferramentas auxiliares.
-
-Responsabilidades típicas:
-
-- Vetores, wrap de tela, conversão de ângulo
-- Funções puras que não dependem de estado global
-
----
-
-### 3.9 config.py
-
-Configuração central.
-
-Responsabilidades:
-
-- Constantes do jogo (tamanhos, velocidades, TTL, limites, caminhos)
-- Um único lugar para ajustar “game feel”
-
----
-
-### 3.10 assets/sounds/
-
-Recursos de áudio (WAV) usados pelo jogo.
-
----
-
-## 4. Regras de Dependência (Imports)
-
-Dependências esperadas (direção saudável):
-
-- `main.py` → `game.py`
-- `game.py` → `systems.py`, `controls.py`, `audio.py`, `config.py`
-- `systems.py` → `sprites.py`, `commands.py`, `config.py`, `utils.py`
-- `sprites.py` → `config.py`, `utils.py`
-- `controls.py` → `commands.py`
-
-Dependências a evitar:
-
-- `systems.py` importar `game.py`
-- `sprites.py` importar `game.py` ou `audio.py`
-- qualquer import circular
-
----
-
-## 5. Por que esta arquitetura já ajuda no Multiplayer
-
-Mesmo sem rede, já existe uma separação importante:
-
-- `commands.py` define “intenção” (o que o jogador pediu)
-- `systems.py` (World) decide a “verdade” (o que aconteceu)
-- `game.py` orquestra entrada/saída (input, render, som)
-
-No multiplayer, a ideia é:
-
-- Cliente envia `PlayerCommand`
-- Servidor roda `World.update()`
-- Servidor envia “estado” (snapshot) para clientes
-
----
-
-## 6. Evolução Planejada (Sem Confundir com a Estrutura Atual)
-
-Quando for preparar multiplayer, a estrutura recomendada é separar pastas:
-
-- `core/` (regras puras, sem pygame)
-- `client/` (pygame: input, render, áudio)
-
-Plano típico de evolução:
-
-1) Extrair desenho para um `renderer.py` (tirar `draw()` de entidades)
-2) Garantir que `World` não toca som diretamente
-3) Adicionar `snapshot()` serializável no `World`
-4) Adicionar `entity_id`, `player_id` e `tick`
-5) Criar `asteroids_multi-player/` reutilizando o núcleo (`core/`)
-
-Importante: esta seção é “alvo futuro”. A estrutura existente hoje é a
-mostrada na Seção 2.
+Estado atual:
+- Pasta `sounds/` com efeitos WAV usados pelo cliente pygame
+
+## 4. Dependências Entre Módulos (Atual)
+
+Fluxo principal de imports observado hoje:
+- `main.py` -> `game.py`
+- `game.py` -> `config.py`, `audio.py`, `controls.py`, `systems.py`,
+  `utils.py`
+- `systems.py` -> `config.py`, `commands.py`, `sprites.py`, `utils.py`
+- `sprites.py` -> `config.py`, `commands.py`, `utils.py`
+- `controls.py` -> `commands.py`
+- `audio.py` -> `config.py`
+- `utils.py` -> `config.py`
+
+Regra de saúde arquitetural:
+- Evitar imports circulares
+
+## 5. Arquitetura Alvo (planejada)
+
+Planejamento futuro (ainda não implementado neste repositório):
+- `core/`: regras puras de jogo, sem pygame
+- `client/`: input, render e áudio com pygame
+
+Importante:
+- As pastas `core/` e `client/` não existem hoje.
+- A arquitetura em produção atual é a descrita nas seções 2 a 4.
