@@ -134,6 +134,8 @@ class World:
         for ufo in list(self.ufos):
             ufo.target_pos = target
             ufo.update(dt)
+            if not ufo.alive():
+                continue
 
             ufo.target_pos = target
             bullet = ufo.try_fire()

@@ -266,11 +266,14 @@ class UFO(pg.sprite.Sprite):
             self.vel = self.move_dir * self.speed
 
         self.pos += self.vel * dt
-        self.pos = wrap_pos(self.pos)
+        self._kill_if_outside_screen()
 
     def _update_cross(self, dt: float) -> None:
         self.pos += self.vel * dt
-        margin = 60
+        self._kill_if_outside_screen()
+
+    def _kill_if_outside_screen(self) -> None:
+        margin = self.r
         out_x = self.pos.x < -margin or self.pos.x > C.WIDTH + margin
         out_y = self.pos.y < -margin or self.pos.y > C.HEIGHT + margin
         if out_x or out_y:
