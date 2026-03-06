@@ -1,5 +1,3 @@
-"""Entrypoint do jogo."""
-
 from client.game import Game
 
 
