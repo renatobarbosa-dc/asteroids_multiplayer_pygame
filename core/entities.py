@@ -286,7 +286,6 @@ class UFO(pg.sprite.Sprite):
         target_pos = self.target_pos
         if target_pos is None:
             return None
-            return None
 
         if not self.small and random() < C.UFO_BIG_MISS_CHANCE:
             ang = uniform(0.0, 360.0)

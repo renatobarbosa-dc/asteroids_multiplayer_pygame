@@ -278,10 +278,3 @@ class World:
         self.events.append("ship_explosion")
         if self.lives <= 0:
             self.game_over = True
-
-    def draw(self, surf: pg.Surface, font: pg.font.Font) -> None:
-        for spr in self.all_sprites:
-            spr.draw(surf)
-        txt = f"SCORE {self.score:06d}   LIVES {self.lives}   WAVE {self.wave}"
-        label = font.render(txt, True, C.WHITE)
-        surf.blit(label, (10, 10))
