@@ -62,3 +62,20 @@ def test_custom_palette_argument_is_respected():
     assert color_for_player(2, palette=custom) == (2, 2, 2)
     assert color_for_player(3, palette=custom) == (3, 3, 3)
     assert color_for_player(4, palette=custom) == (1, 1, 1)  # wraps
+
+
+def test_ufo_bullet_owner_falls_back_to_white():
+    """Bullets fired by UFOs carry the sentinel UFO_BULLET_OWNER = -10.
+    The renderer reuses `color_for_player` to look up the bullet's
+    color; the non-positive id path must keep those bullets WHITE so
+    the original UFO appearance is preserved."""
+    from core.entities import UFO_BULLET_OWNER
+
+    assert color_for_player(UFO_BULLET_OWNER) == C.WHITE
+
+
+def test_player_bullet_color_matches_player_ship_color():
+    """Slot N for a ship matches slot N for that player's bullets —
+    the same helper drives both, so the visual identity holds."""
+    for pid in range(1, 9):
+        assert color_for_player(pid) == C.PLAYER_COLORS[pid - 1]

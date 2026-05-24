@@ -128,10 +128,13 @@ class Renderer:
         self.screen.blit(label, (x, y))
 
     def _draw_bullet(self, bullet: Bullet) -> None:
+        """A bullet adopts its shooter's color via the same palette as
+        the ship hull. UFO bullets carry the sentinel ``UFO_BULLET_OWNER``
+        (negative); ``color_for_player`` returns WHITE for those, which
+        keeps the original UFO-bullet appearance intact."""
+        color = color_for_player(bullet.owner_id, self.config.PLAYER_COLORS)
         center = self.camera.world_to_screen(bullet.pos)
-        pg.draw.circle(
-            self.screen, self.config.WHITE, center, bullet.r, width=1
-        )
+        pg.draw.circle(self.screen, color, center, bullet.r, width=1)
 
     def _draw_particle(self, particle: Particle) -> None:
         sx, sy = self.camera.world_to_screen(particle.pos)
