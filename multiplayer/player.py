@@ -27,14 +27,22 @@ from client.camera import Camera
 from client.controls import InputMapper
 from client.renderer import Renderer
 from core import config as C
+from core.utils import Vec
 from core.world import World
 from multiplayer.command_codec import command_to_dict
-from multiplayer.hud import draw_local_hud, draw_scoreboard
+from multiplayer.hud import (
+    draw_local_hud,
+    draw_match_end_screen,
+    draw_match_overlay,
+    draw_scoreboard,
+    draw_waiting_screen,
+)
 from multiplayer.snapshot import snapshot_to_world
 from server.protocol import (
     HELLO,
     INPUT,
     REJECT,
+    RESTART_REQUEST,
     SNAPSHOT,
     WELCOME,
     envelope,
@@ -134,6 +142,13 @@ class Player:
                     event.type == pg.KEYDOWN and event.key in (pg.K_ESCAPE, pg.K_q)
                 ):
                     self.running = False
+                elif (
+                    event.type == pg.KEYDOWN
+                    and event.key == pg.K_RETURN
+                    and self.world.match_state == "ended"
+                ):
+                    await ws.send(envelope(RESTART_REQUEST, self.server_tick, self.seq, {}))
+                    self.seq += 1
                 else:
                     self.input_mapper.handle_event(event)
 
@@ -153,15 +168,28 @@ class Player:
             await asyncio.sleep(max(0.0, period - elapsed))
 
     def _draw(self) -> None:
+        state = self.world.match_state
         self.renderer.clear()
-        ship = self.world.get_ship(self.player_id) if self.player_id is not None else None
-        if ship is not None:
-            self.camera.update(ship.pos)
 
-        self.renderer.draw_world(self.world)
-
-        draw_local_hud(self.screen, self.font, self.world, self.player_id, C.WHITE)
-        draw_scoreboard(self.screen, self.font, self.world, self.player_id, C.WHITE)
+        if state == "running":
+            ship = self.world.get_ship(self.player_id) if self.player_id is not None else None
+            if ship is not None:
+                self.camera.update(ship.pos)
+            else:
+                self.camera.update(Vec(C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2))
+            self.renderer.draw_world(self.world)
+            draw_local_hud(self.screen, self.font, self.world, self.player_id, C.WHITE)
+            draw_scoreboard(self.screen, self.font, self.world, self.player_id, C.WHITE)
+            draw_match_overlay(self.screen, self.font, self.world, self.player_id, C.WHITE)
+        elif state == "lobby":
+            self.camera.update(Vec(C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2))
+            self.renderer.draw_world(self.world)
+            draw_waiting_screen(self.screen, self.font, self.big, self.world, C.WHITE)
+        else:  # "ended"
+            self.camera.update(Vec(C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2))
+            self.renderer.draw_world(self.world)
+            draw_scoreboard(self.screen, self.font, self.world, self.player_id, C.WHITE)
+            draw_match_end_screen(self.screen, self.font, self.big, self.world, C.WHITE)
 
         pg.display.flip()
 

@@ -78,9 +78,11 @@ class World:
         self.particle_events.clear()
 
     def reset(self) -> None:
-        """Reset the world (used on Game Over)."""
+        """Reset the world. Single-player game-over keeps the implicit
+        local ship; deathmatch worlds stay empty so the server can
+        re-spawn each connection explicitly."""
         deathmatch = self.deathmatch
-        self.__init__(deathmatch=deathmatch)
+        self.__init__(spawn_default_player=not deathmatch, deathmatch=deathmatch)
 
     def spawn_player(self, player_id: PlayerId) -> None:
         pos = Vec(C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2)

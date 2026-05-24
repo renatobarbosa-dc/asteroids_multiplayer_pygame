@@ -182,3 +182,41 @@ def test_ended_update_is_noop():
 
     assert (ship.vel.x, ship.vel.y) == before_vel
     assert w.match_state == "ended"
+
+
+def test_restart_via_world_reset_returns_to_lobby():
+    """A reset() on an ended deathmatch world must wipe match data and
+    drop back to the lobby — that's what the server does on a restart
+    request."""
+    w = World(spawn_default_player=False, deathmatch=True)
+    w.spawn_player(1)
+    w.match_state = "ended"
+    w.winner_id = 1
+    w.frags[1] = C.FRAG_LIMIT
+    w.scores[1] = 500
+
+    w.reset()
+
+    assert w.match_state == "lobby"
+    assert w.winner_id is None
+    assert w.frags == {}
+    assert w.scores == {}
+    assert w.match_timer.remaining == 0.0
+
+
+def test_post_restart_with_enough_players_transitions_running():
+    """After a reset and re-spawn, the next update should immediately
+    flip back to running because the player count is already at the
+    minimum."""
+    w = World(spawn_default_player=False, deathmatch=True)
+    w.spawn_player(1)
+    w.spawn_player(2)
+    w.match_state = "ended"
+
+    w.reset()
+    w.spawn_player(1)
+    w.spawn_player(2)
+    w.update(0.01, {})
+
+    assert w.match_state == "running"
+    assert w.match_timer.active

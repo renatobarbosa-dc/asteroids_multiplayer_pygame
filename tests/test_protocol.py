@@ -247,3 +247,9 @@ def test_snapshot_frags_use_string_keys():
 def test_snapshot_winner_id_none_until_match_ends():
     snap = world_to_snapshot(World(spawn_default_player=False, deathmatch=True))
     assert snap["winner_id"] is None
+
+
+def test_restart_request_constant_exists():
+    """Client -> server message type used by the networked player to ask
+    the authoritative server to reset the world after a match ends."""
+    assert protocol.RESTART_REQUEST == "restart_request"

@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 HELLO = "hello"
 INPUT = "input"
 BYE = "bye"
+RESTART_REQUEST = "restart_request"
 
 # Server -> Client
 WELCOME = "welcome"

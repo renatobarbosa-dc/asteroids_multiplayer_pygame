@@ -24,6 +24,7 @@ from server.protocol import (
     HELLO,
     INPUT,
     REJECT,
+    RESTART_REQUEST,
     SNAPSHOT,
     WELCOME,
     envelope,
@@ -110,6 +111,8 @@ class Server:
                     continue
                 if msg["type"] == INPUT:
                     self._inputs_by_player_id[player_id] = dict_to_command(msg["data"])
+                elif msg["type"] == RESTART_REQUEST:
+                    self._handle_restart_request()
         finally:
             self.connections.pop(player_id, None)
             self._seq_by_player_id.pop(player_id, None)
@@ -122,6 +125,18 @@ class Server:
             self.world.frags.pop(player_id, None)
             self.world.respawning.pop(player_id, None)
             self.world.extra_lives_awarded.pop(player_id, None)
+
+    def _handle_restart_request(self) -> None:
+        """Reset the world back to the lobby and re-spawn every connection.
+
+        Idempotent: a request that arrives outside ``ended`` is a no-op,
+        so duplicate ENTER presses from multiple clients cause one reset.
+        """
+        if self.world.match_state != "ended":
+            return
+        self.world.reset()
+        for pid in self.connections:
+            self.world.spawn_player(pid)
 
     async def _handshake(self, ws: Any) -> tuple[int, str] | None:
         try:
