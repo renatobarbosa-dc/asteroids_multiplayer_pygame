@@ -116,6 +116,7 @@ class Game:
             self.world.lives.get(C.LOCAL_PLAYER_ID, 0),
             self.world.wave,
             self.scene,
+            self.world.extra_life_notice.remaining,
         )
         pg.display.flip()
 

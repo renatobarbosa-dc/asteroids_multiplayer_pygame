@@ -32,9 +32,11 @@ class World:
 
         self.scores: dict[PlayerId, int] = {}
         self.lives: dict[PlayerId, int] = {}
+        self.extra_lives_awarded: dict[PlayerId, int] = {}
         self.wave = 0
         self.wave_cool = Countdown(C.WAVE_DELAY)
         self.ufo_timer = Countdown(C.UFO_SPAWN_EVERY)
+        self.extra_life_notice = Countdown()
 
         self.events: list[str] = []
         self._collision_mgr = CollisionManager()
@@ -58,6 +60,7 @@ class World:
         self.ships[player_id] = ship
         self.scores[player_id] = 0
         self.lives[player_id] = C.START_LIVES
+        self.extra_lives_awarded[player_id] = 0
         self.all_sprites.add(ship)
 
     def get_ship(self, player_id: PlayerId) -> Ship | None:
@@ -182,6 +185,7 @@ class World:
         if self.ufo_timer.tick(dt):
             self.spawn_ufo()
             self.ufo_timer.reset(C.UFO_SPAWN_EVERY)
+        self.extra_life_notice.tick(dt)
 
     def _maybe_start_next_wave(self, dt: float) -> None:
         if self.asteroids:
@@ -204,6 +208,7 @@ class World:
         for player_id, delta in result.score_deltas.items():
             if player_id in self.scores:
                 self.scores[player_id] += delta
+                self._maybe_award_extra_life(player_id)
 
         for pos, vel, size in result.asteroids_to_spawn:
             self.spawn_asteroid(pos, vel, size)
@@ -242,3 +247,16 @@ class World:
         self.events.append("ship_explosion")
         if all(v <= 0 for v in self.lives.values()):
             self.game_over = True
+
+    def _maybe_award_extra_life(self, player_id: PlayerId) -> None:
+        """Grant one extra life per EXTRA_LIFE_EVERY-point threshold crossed."""
+        total = self.scores[player_id]
+        already = self.extra_lives_awarded[player_id]
+        target = total // C.EXTRA_LIFE_EVERY
+        if target <= already:
+            return
+        gained = target - already
+        self.lives[player_id] += gained
+        self.extra_lives_awarded[player_id] = target
+        self.extra_life_notice.reset(C.EXTRA_LIFE_NOTICE_TIME)
+        self.events.append("extra_life")
