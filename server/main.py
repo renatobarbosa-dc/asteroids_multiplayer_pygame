@@ -12,6 +12,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
+import sys
+import time
 from typing import Any
 
 import websockets
@@ -44,9 +46,15 @@ class Server:
     and there is no reason to reuse them at this stage).
     """
 
-    def __init__(self, host: str, port: int) -> None:
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        profile_broadcast: bool = False,
+    ) -> None:
         self.host = host
         self.port = port
+        self.profile_broadcast = profile_broadcast
         self.tick = 0
         # The websocket connection type differs slightly between websockets
         # 13 (legacy) and 14+ (asyncio). Both expose recv/send/close and
@@ -90,14 +98,28 @@ class Server:
     async def _broadcast_snapshot(self) -> None:
         if not self.connections:
             return
+        if self.profile_broadcast:
+            t0 = time.perf_counter()
         snap = world_to_snapshot(self.world, names=self._names_by_player_id)
+        bytes_total = 0
         for player_id, ws in list(self.connections.items()):
             seq = self._seq_by_player_id.get(player_id, 0)
             self._seq_by_player_id[player_id] = seq + 1
+            payload = envelope(SNAPSHOT, self.tick, seq, snap)
             # Connection handler cleans up its own slot on close; skipping
             # this client for the current frame is the right local response.
             with contextlib.suppress(websockets.ConnectionClosed):
-                await ws.send(envelope(SNAPSHOT, self.tick, seq, snap))
+                await ws.send(payload)
+                bytes_total += len(payload)
+        if self.profile_broadcast:
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            print(
+                f"broadcast tick={self.tick} "
+                f"ms={elapsed_ms:.2f} "
+                f"bytes={bytes_total} "
+                f"conns={len(self.connections)}",
+                file=sys.stderr,
+            )
 
     async def _handle_connection(self, ws: Any) -> None:
         result = await self._handshake(ws)
@@ -190,10 +212,20 @@ def main() -> None:
     parser.add_argument(
         "--port", default=8765, type=int, help="bind port (default: 8765)"
     )
+    parser.add_argument(
+        "--profile-broadcast",
+        action="store_true",
+        help="log ms and bytes per broadcast to stderr",
+    )
     args = parser.parse_args()
 
+    server = Server(
+        args.host,
+        args.port,
+        profile_broadcast=args.profile_broadcast,
+    )
     try:
-        asyncio.run(Server(args.host, args.port).run())
+        asyncio.run(server.run())
     except KeyboardInterrupt:
         print()
 
