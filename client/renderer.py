@@ -60,9 +60,9 @@ class Renderer:
             self.screen.blit(notice, (x, 60))
 
     def draw_menu(self) -> None:
-        self._draw_centered(self.big, "ASTEROIDS", 150)
+        self._draw_centered(self.big, "ASTEROIDS", 90)
 
-        self._draw_centered(self.font, "ENTER  -  START GAME", 280)
+        self._draw_centered(self.font, "ENTER  -  START GAME", 220)
 
         controls = [
             ("LEFT / RIGHT", "ROTATE"),
@@ -77,16 +77,16 @@ class Renderer:
         widest = max(label.get_width() for label in labels)
         x = (self.config.WIDTH - widest) // 2
 
-        y = 360
+        y = 290
         for label in labels:
             self.screen.blit(label, (x, y))
             y += 32
 
-        self._draw_centered(self.font, "Q  -  QUIT", y + 24)
+        self._draw_centered(self.font, "Q  -  QUIT", y + 20)
 
     def draw_game_over(self) -> None:
-        self._draw_centered(self.big, "GAME OVER", 260)
-        self._draw_centered(self.font, "Press any key", 340)
+        self._draw_centered(self.big, "GAME OVER", 220)
+        self._draw_centered(self.font, "Press any key", 300)
 
     def _draw_text(
         self,
