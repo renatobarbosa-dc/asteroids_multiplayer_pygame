@@ -12,13 +12,14 @@ license-files = ["LICENSE"]
 authors = [{ name = "Jucimar Maia da Silva Jr" }]
 dependencies = [
     "pygame>=2.1,<3",
+    "websockets>=13,<17",
 ]
 
 [project.optional-dependencies]
 dev = ["ruff>=0.6", "pytest>=8"]
 
 [tool.setuptools]
-packages = ["core", "client"]
+packages = ["core", "client", "server"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
