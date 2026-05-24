@@ -7,6 +7,9 @@ name = "asteroids"
 version = "0.1.0"
 description = "Single-player Asteroids in Python with pygame"
 requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Jucimar Maia da Silva Jr" }]
 dependencies = [
     "pygame>=2.1,<3",
 ]
