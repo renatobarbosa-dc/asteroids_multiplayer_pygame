@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from random import choice, random, uniform
+from random import Random, choice, random, randrange, uniform
 
 from core import config as C
 from core.commands import PlayerCommand
@@ -97,24 +97,41 @@ class Bullet(Entity):
 
 
 class Asteroid(Entity):
-    """Asteroid with irregular polygon shape."""
+    """Asteroid with irregular polygon shape.
 
-    __slots__ = ("pos", "vel", "size", "r", "poly")
+    ``poly_seed`` makes the polygon deterministic: the server picks a
+    seed at spawn, sends it in every snapshot, and the client rebuilds
+    the same shape on each frame instead of jittering at the snapshot
+    rate. Default ``None`` generates a fresh seed — used by single-player
+    and tests.
+    """
 
-    def __init__(self, pos: Vec, vel: Vec, size: str) -> None:
+    __slots__ = ("pos", "vel", "size", "r", "poly_seed", "poly")
+
+    def __init__(
+        self,
+        pos: Vec,
+        vel: Vec,
+        size: str,
+        poly_seed: int | None = None,
+    ) -> None:
         super().__init__()
         self.pos = Vec(pos)
         self.vel = Vec(vel)
         self.size = size
         self.r = int(C.AST_SIZES[size]["r"])
+        self.poly_seed = (
+            poly_seed if poly_seed is not None else randrange(2**31)
+        )
         self.poly = self._make_poly()
 
     def _make_poly(self) -> list[Vec]:
         steps = C.AST_POLY_STEPS[self.size]
+        rng = Random(self.poly_seed)
         pts: list[Vec] = []
         for i in range(steps):
             ang = i * (360 / steps)
-            jitter = uniform(C.AST_POLY_JITTER_MIN, C.AST_POLY_JITTER_MAX)
+            jitter = rng.uniform(C.AST_POLY_JITTER_MIN, C.AST_POLY_JITTER_MAX)
             rr = self.r * jitter
             v = Vec(
                 math.cos(math.radians(ang)),

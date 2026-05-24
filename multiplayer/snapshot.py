@@ -30,7 +30,12 @@ def snapshot_to_world(snap: dict[str, Any], world: World) -> None:
         for b in snap["bullets"]
     ]
     world.asteroids = [
-        Asteroid(Vec(a["x"], a["y"]), Vec(a["vx"], a["vy"]), a["size"])
+        Asteroid(
+            Vec(a["x"], a["y"]),
+            Vec(a["vx"], a["vy"]),
+            a["size"],
+            poly_seed=a["poly_seed"],
+        )
         for a in snap["asteroids"]
     ]
     world.ufos = [_build_ufo(u) for u in snap["ufos"]]

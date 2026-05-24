@@ -130,7 +130,15 @@ def test_snapshot_asteroid_carries_position_velocity_and_size():
     snap = world_to_snapshot(w)
     spawned = [a for a in snap["asteroids"] if a["x"] == 100 and a["y"] == 200]
     assert len(spawned) == 1
-    assert spawned[0] == {"x": 100, "y": 200, "vx": 10, "vy": 20, "size": "L"}
+    expected_seed = w.asteroids[-1].poly_seed
+    assert spawned[0] == {
+        "x": 100,
+        "y": 200,
+        "vx": 10,
+        "vy": 20,
+        "size": "L",
+        "poly_seed": expected_seed,
+    }
 
 
 def test_snapshot_bullet_fields():

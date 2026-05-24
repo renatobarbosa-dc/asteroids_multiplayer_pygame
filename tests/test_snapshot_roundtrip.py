@@ -125,7 +125,16 @@ def test_snapshot_to_world_rebuilds_asteroids_with_size():
     w = World(spawn_default_player=False)
     snapshot_to_world(
         _snapshot(
-            asteroids=[{"x": 30, "y": 40, "vx": 1, "vy": 2, "size": "M"}]
+            asteroids=[
+                {
+                    "x": 30,
+                    "y": 40,
+                    "vx": 1,
+                    "vy": 2,
+                    "size": "M",
+                    "poly_seed": 7,
+                }
+            ]
         ),
         w,
     )
@@ -134,6 +143,7 @@ def test_snapshot_to_world_rebuilds_asteroids_with_size():
     a = w.asteroids[0]
     assert a.size == "M"
     assert (a.pos.x, a.pos.y) == (30, 40)
+    assert a.poly_seed == 7
     assert a.poly, "asteroid should regenerate its polygon locally"
 
 

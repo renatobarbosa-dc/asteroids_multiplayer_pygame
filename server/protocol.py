@@ -79,10 +79,10 @@ def world_to_snapshot(
     the particles locally — that way bandwidth scales with the number of
     explosions, not with the number of particles per explosion.
 
-    The asteroid polygon (`poly`) is also excluded — the client regenerates
-    it from (size, position) when reconstructing the world. Polygon jitter
-    will differ from the server, but the shape stays consistent with the
-    asteroid's size class.
+    The asteroid polygon (`poly`) is excluded but `poly_seed` is included
+    so the client regenerates the exact same shape. Without the seed the
+    client would jitter the polygon on every snapshot at the snapshot
+    rate.
 
     ``names`` is the server-side mapping of player_id to display name. Tests
     that build snapshots straight from a `World` can omit it; the live
@@ -120,6 +120,7 @@ def world_to_snapshot(
                 "vx": a.vel.x,
                 "vy": a.vel.y,
                 "size": a.size,
+                "poly_seed": a.poly_seed,
             }
             for a in world.asteroids
         ],
