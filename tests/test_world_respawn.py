@@ -62,7 +62,9 @@ def test_deathmatch_ship_die_removes_ship_and_starts_timer():
 def test_deathmatch_respawn_after_delay_reinstates_ship():
     world = World(spawn_default_player=False, deathmatch=True)
     world.spawn_player(7)
-    world.match_state = "running"  # bypass the lobby gate for an isolated respawn check
+    world.match_state = (
+        "running"  # bypass the lobby gate for an isolated respawn check
+    )
     world.scores[7] = 250
     world._ship_die(world.ships[7])
     assert 7 not in world.ships
@@ -71,7 +73,9 @@ def test_deathmatch_respawn_after_delay_reinstates_ship():
 
     assert 7 in world.ships
     assert 7 not in world.respawning
-    assert world.ships[7].invuln.active, "respawned ship gets safe-spawn invuln"
+    assert world.ships[7].invuln.active, (
+        "respawned ship gets safe-spawn invuln"
+    )
     assert world.scores[7] == 250, "score preserved across respawn"
 
 
@@ -89,7 +93,9 @@ def test_deathmatch_respawn_position_avoids_asteroids():
     world.update(C.RESPAWN_DELAY + 0.05, {})
 
     respawned = world.ships[7]
-    assert respawned is not ship_before, "respawn creates a fresh ship instance"
+    assert respawned is not ship_before, (
+        "respawn creates a fresh ship instance"
+    )
     for ast in world.asteroids:
         d = (respawned.pos - ast.pos).length()
         assert d > (ast.r + respawned.r + C.HYPERSPACE_SAFE_MARGIN), (

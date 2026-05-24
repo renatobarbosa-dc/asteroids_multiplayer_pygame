@@ -16,8 +16,8 @@ LOCAL_PLAYER_ID = 1
 START_LIVES = 3
 SAFE_SPAWN_TIME = 2.0
 WAVE_DELAY = 2.0
-# Wave count tuned for the 4K world: 32x larger area than the original 800x600,
-# so we start with roughly 4x the spawn rate (one asteroid per ~1.3 megapixels).
+# Wave count tuned for the 4K world: 32x larger than the original
+# 800x600, so roughly 4x the spawn rate (one asteroid per 1.3 Mpx).
 WAVE_BASE_COUNT = 12
 EXTRA_LIFE_EVERY = 5000
 EXTRA_LIFE_NOTICE_TIME = 1.5

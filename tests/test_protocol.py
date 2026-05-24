@@ -52,13 +52,17 @@ def test_parse_rejects_missing_data():
 
 
 def test_parse_rejects_wrong_tick_type():
-    assert parse('{"type": "hello", "tick": "0", "seq": 0, "data": {}}') is None
+    assert (
+        parse('{"type": "hello", "tick": "0", "seq": 0, "data": {}}') is None
+    )
 
 
 def test_parse_rejects_bool_as_int_for_tick():
     # JSON booleans are also ints in Python; protocol must not accept them
     # as a substitute for the numeric tick counter.
-    assert parse('{"type": "hello", "tick": true, "seq": 0, "data": {}}') is None
+    assert (
+        parse('{"type": "hello", "tick": true, "seq": 0, "data": {}}') is None
+    )
 
 
 def test_parse_rejects_non_dict_data():
@@ -225,7 +229,9 @@ def test_snapshot_match_state_running_for_single_player_world():
 
 
 def test_snapshot_match_state_lobby_by_default_in_deathmatch_world():
-    snap = world_to_snapshot(World(spawn_default_player=False, deathmatch=True))
+    snap = world_to_snapshot(
+        World(spawn_default_player=False, deathmatch=True)
+    )
     assert snap["match_state"] == "lobby"
 
 
@@ -245,7 +251,9 @@ def test_snapshot_frags_use_string_keys():
 
 
 def test_snapshot_winner_id_none_until_match_ends():
-    snap = world_to_snapshot(World(spawn_default_player=False, deathmatch=True))
+    snap = world_to_snapshot(
+        World(spawn_default_player=False, deathmatch=True)
+    )
     assert snap["winner_id"] is None
 
 

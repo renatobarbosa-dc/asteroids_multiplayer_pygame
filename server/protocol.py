@@ -36,7 +36,9 @@ SNAPSHOT = "snapshot"
 
 def envelope(msg_type: str, tick: int, seq: int, data: dict[str, Any]) -> str:
     """Serialize a message envelope to a JSON string."""
-    return json.dumps({"type": msg_type, "tick": tick, "seq": seq, "data": data})
+    return json.dumps(
+        {"type": msg_type, "tick": tick, "seq": seq, "data": data}
+    )
 
 
 def parse(raw: str | bytes) -> dict[str, Any] | None:
@@ -54,7 +56,9 @@ def parse(raw: str | bytes) -> dict[str, Any] | None:
         return None
     if not isinstance(msg.get("type"), str):
         return None
-    if not isinstance(msg.get("tick"), int) or isinstance(msg.get("tick"), bool):
+    if not isinstance(msg.get("tick"), int) or isinstance(
+        msg.get("tick"), bool
+    ):
         return None
     if not isinstance(msg.get("seq"), int) or isinstance(msg.get("seq"), bool):
         return None
@@ -133,9 +137,13 @@ def world_to_snapshot(
         "lives": {str(pid): lives for pid, lives in world.lives.items()},
         "deaths": {str(pid): n for pid, n in world.deaths.items()},
         "respawning": [
-            {"player_id": pid, "remaining": cd.remaining} for pid, cd in world.respawning.items()
+            {"player_id": pid, "remaining": cd.remaining}
+            for pid, cd in world.respawning.items()
         ],
-        "events": [{"kind": kind, "x": pos.x, "y": pos.y} for kind, pos in world.particle_events],
+        "events": [
+            {"kind": kind, "x": pos.x, "y": pos.y}
+            for kind, pos in world.particle_events
+        ],
         "names": {str(pid): name for pid, name in (names or {}).items()},
         "match_state": world.match_state,
         "time_remaining": world.match_timer.remaining,

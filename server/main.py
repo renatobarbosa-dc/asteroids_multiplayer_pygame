@@ -65,8 +65,12 @@ class Server:
         self.world = World(spawn_default_player=False, deathmatch=True)
 
     async def run(self) -> None:
-        async with websockets.serve(self._handle_connection, self.host, self.port):
-            print(f"asteroids server listening on ws://{self.host}:{self.port}")
+        async with websockets.serve(
+            self._handle_connection, self.host, self.port
+        ):
+            print(
+                f"asteroids server listening on ws://{self.host}:{self.port}"
+            )
             await asyncio.gather(self._tick_loop(), self._snapshot_loop())
 
     async def _tick_loop(self) -> None:
@@ -110,7 +114,9 @@ class Server:
                 if msg is None:
                     continue
                 if msg["type"] == INPUT:
-                    self._inputs_by_player_id[player_id] = dict_to_command(msg["data"])
+                    self._inputs_by_player_id[player_id] = dict_to_command(
+                        msg["data"]
+                    )
                 elif msg["type"] == RESTART_REQUEST:
                     self._handle_restart_request()
         finally:
@@ -153,7 +159,9 @@ class Server:
             return None
 
         if len(self.connections) >= C.MAX_PLAYERS:
-            await ws.send(envelope(REJECT, self.tick, 0, {"reason": "server_full"}))
+            await ws.send(
+                envelope(REJECT, self.tick, 0, {"reason": "server_full"})
+            )
             await ws.close()
             return None
 
@@ -165,7 +173,9 @@ class Server:
         if not name:
             name = f"P{player_id}"
 
-        await ws.send(envelope(WELCOME, self.tick, 0, {"player_id": player_id}))
+        await ws.send(
+            envelope(WELCOME, self.tick, 0, {"player_id": player_id})
+        )
         return player_id, name
 
 
@@ -174,8 +184,12 @@ def main() -> None:
         prog="server",
         description="Asteroids multiplayer server (LAN deathmatch).",
     )
-    parser.add_argument("--host", default="0.0.0.0", help="bind address (default: 0.0.0.0)")
-    parser.add_argument("--port", default=8765, type=int, help="bind port (default: 8765)")
+    parser.add_argument(
+        "--host", default="0.0.0.0", help="bind address (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port", default=8765, type=int, help="bind port (default: 8765)"
+    )
     args = parser.parse_args()
 
     try:

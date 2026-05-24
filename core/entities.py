@@ -194,13 +194,13 @@ class Ship(Entity):
         return Bullet(self.player_id, pos, vel, ttl=C.BULLET_TTL)
 
     def hyperspace(self, pos: Vec) -> None:
-        """Teleport to the given position. The caller picks where it is safe."""
+        """Teleport to the given position. Caller picks a safe spot."""
         self.pos = Vec(pos)
         self.vel.xy = (0, 0)
         self.invuln.reset(C.SAFE_SPAWN_TIME)
 
     def try_activate_shield(self) -> bool:
-        """Start the shield if its cooldown has elapsed. Returns True on success."""
+        """Start the shield if its cooldown elapsed. True on success."""
         if self.shield_cd.active:
             return False
         self.shield.reset(C.SHIELD_DURATION)
@@ -231,7 +231,16 @@ class Ship(Entity):
 class UFO(Entity):
     """UFO with two movement behaviors and shooting."""
 
-    __slots__ = ("small", "r", "pos", "vel", "speed", "cool", "move_dir", "target_pos")
+    __slots__ = (
+        "small",
+        "r",
+        "pos",
+        "vel",
+        "speed",
+        "cool",
+        "move_dir",
+        "target_pos",
+    )
 
     def __init__(
         self,
@@ -360,7 +369,11 @@ class UFO(Entity):
                 return None
             dirv = to_target.normalize()
 
-        jitter = C.UFO_AIM_JITTER_DEG_SMALL if self.small else C.UFO_AIM_JITTER_DEG_BIG
+        jitter = (
+            C.UFO_AIM_JITTER_DEG_SMALL
+            if self.small
+            else C.UFO_AIM_JITTER_DEG_BIG
+        )
         dirv = rotate_vec(dirv, uniform(-jitter, jitter))
 
         vel = dirv * C.UFO_BULLET_SPEED

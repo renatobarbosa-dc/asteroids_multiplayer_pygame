@@ -82,7 +82,9 @@ class World:
         local ship; deathmatch worlds stay empty so the server can
         re-spawn each connection explicitly."""
         deathmatch = self.deathmatch
-        self.__init__(spawn_default_player=not deathmatch, deathmatch=deathmatch)
+        self.__init__(
+            spawn_default_player=not deathmatch, deathmatch=deathmatch
+        )
 
     def spawn_player(self, player_id: PlayerId) -> None:
         pos = Vec(C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2)
@@ -107,7 +109,10 @@ class World:
 
         for _ in range(count):
             pos = rand_edge_pos()
-            while any((pos - sp).length() < C.AST_MIN_SPAWN_DIST for sp in ship_positions):
+            while any(
+                (pos - sp).length() < C.AST_MIN_SPAWN_DIST
+                for sp in ship_positions
+            ):
                 pos = rand_edge_pos()
 
             ang = uniform(0, math.tau)
@@ -172,7 +177,9 @@ class World:
 
             if cmd.hyperspace:
                 ship.hyperspace(self._find_safe_hyperspace_pos(ship))
-                self.scores[player_id] = max(0, self.scores[player_id] - C.HYPERSPACE_COST)
+                self.scores[player_id] = max(
+                    0, self.scores[player_id] - C.HYPERSPACE_COST
+                )
 
             if cmd.shield and ship.try_activate_shield():
                 self.events.append("shield_on")
@@ -254,7 +261,8 @@ class World:
         for _ in range(C.HYPERSPACE_ATTEMPTS):
             pos = Vec(uniform(0, C.WORLD_WIDTH), uniform(0, C.WORLD_HEIGHT))
             if all(
-                (pos - ast.pos).length() > (ast.r + ship.r + C.HYPERSPACE_SAFE_MARGIN)
+                (pos - ast.pos).length()
+                > (ast.r + ship.r + C.HYPERSPACE_SAFE_MARGIN)
                 for ast in self.asteroids
             ):
                 return pos
@@ -358,7 +366,7 @@ class World:
         self.events.append("extra_life")
 
     def _purge_dead(self) -> None:
-        """Drop dead entities at the end of the tick. Keeps lists from growing."""
+        """Drop dead entities at end of tick to keep lists bounded."""
         self.bullets = [b for b in self.bullets if b.alive]
         self.asteroids = [a for a in self.asteroids if a.alive]
         self.ufos = [u for u in self.ufos if u.alive]

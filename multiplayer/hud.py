@@ -49,7 +49,10 @@ def scoreboard_lines(world: World, local_player_id: int | None) -> list[str]:
         deaths = world.deaths.get(pid, 0)
         timer = world.respawning.get(pid)
         status = f"RESPAWN {timer.remaining:.1f}s" if timer is not None else ""
-        lines.append(f"{marker}{name:<{_NAME_WIDTH}} {score:>6} D{deaths:02d} {status}".rstrip())
+        row = (
+            f"{marker}{name:<{_NAME_WIDTH}} {score:>6} D{deaths:02d} {status}"
+        )
+        lines.append(row.rstrip())
     return lines
 
 
@@ -133,8 +136,13 @@ def _draw_centered_block(
     lines: list[str],
     color: tuple[int, int, int],
 ) -> None:
-    labels = [f.render(line, True, color) for f, line in zip(fonts, lines, strict=True)]
-    block_h = sum(label.get_height() + _LINE_GAP for label in labels) - _LINE_GAP
+    labels = [
+        f.render(line, True, color)
+        for f, line in zip(fonts, lines, strict=True)
+    ]
+    block_h = (
+        sum(label.get_height() + _LINE_GAP for label in labels) - _LINE_GAP
+    )
     y = (screen.get_height() - block_h) // 2
     for label in labels:
         x = (screen.get_width() - label.get_width()) // 2

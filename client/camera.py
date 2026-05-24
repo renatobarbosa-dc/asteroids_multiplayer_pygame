@@ -25,7 +25,7 @@ class Camera:
         self.origin = Vec(0.0, 0.0)
 
     def update(self, target: Vec) -> None:
-        """Re-center on target, clamped so the camera never sees outside the world."""
+        """Re-center on target, clamped to never see past the world."""
         ox = target.x - C.WINDOW_WIDTH / 2
         oy = target.y - C.WINDOW_HEIGHT / 2
         max_ox = C.WORLD_WIDTH - C.WINDOW_WIDTH
@@ -34,4 +34,7 @@ class Camera:
         self.origin.y = max(0.0, min(oy, max_oy))
 
     def world_to_screen(self, world_pos: Vec) -> tuple[int, int]:
-        return (int(world_pos.x - self.origin.x), int(world_pos.y - self.origin.y))
+        return (
+            int(world_pos.x - self.origin.x),
+            int(world_pos.y - self.origin.y),
+        )

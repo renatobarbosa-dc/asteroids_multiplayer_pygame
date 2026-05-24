@@ -1,4 +1,4 @@
-"""Common game utilities. No pygame here — `core/` stays framework-independent."""
+"""Common game utilities. No pygame — `core/` is framework-free."""
 
 from __future__ import annotations
 
@@ -19,7 +19,9 @@ class Vec:
 
     __slots__ = ("x", "y")
 
-    def __init__(self, x: float | tuple[float, float] | Vec = 0.0, y: float = 0.0) -> None:
+    def __init__(
+        self, x: float | tuple[float, float] | Vec = 0.0, y: float = 0.0
+    ) -> None:
         if isinstance(x, Vec):
             self.x = x.x
             self.y = x.y

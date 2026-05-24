@@ -107,7 +107,10 @@ class Player:
             print("invalid handshake reply", file=sys.stderr)
             return False
         if msg["type"] == REJECT:
-            print(f"server rejected connection: {msg['data'].get('reason')}", file=sys.stderr)
+            print(
+                f"server rejected connection: {msg['data'].get('reason')}",
+                file=sys.stderr,
+            )
             return False
         if msg["type"] != WELCOME:
             print(f"unexpected first message: {msg['type']}", file=sys.stderr)
@@ -139,7 +142,8 @@ class Player:
 
             for event in pg.event.get():
                 if event.type == pg.QUIT or (
-                    event.type == pg.KEYDOWN and event.key in (pg.K_ESCAPE, pg.K_q)
+                    event.type == pg.KEYDOWN
+                    and event.key in (pg.K_ESCAPE, pg.K_q)
                 ):
                     self.running = False
                 elif (
@@ -147,7 +151,11 @@ class Player:
                     and event.key == pg.K_RETURN
                     and self.world.match_state == "ended"
                 ):
-                    await ws.send(envelope(RESTART_REQUEST, self.server_tick, self.seq, {}))
+                    await ws.send(
+                        envelope(
+                            RESTART_REQUEST, self.server_tick, self.seq, {}
+                        )
+                    )
                     self.seq += 1
                 else:
                     self.input_mapper.handle_event(event)
@@ -156,7 +164,11 @@ class Player:
             cmd = self.input_mapper.build_command(keys)
 
             try:
-                await ws.send(envelope(INPUT, self.server_tick, self.seq, command_to_dict(cmd)))
+                await ws.send(
+                    envelope(
+                        INPUT, self.server_tick, self.seq, command_to_dict(cmd)
+                    )
+                )
                 self.seq += 1
             except websockets.ConnectionClosed:
                 self.running = False
@@ -172,24 +184,40 @@ class Player:
         self.renderer.clear()
 
         if state == "running":
-            ship = self.world.get_ship(self.player_id) if self.player_id is not None else None
+            ship = (
+                self.world.get_ship(self.player_id)
+                if self.player_id is not None
+                else None
+            )
             if ship is not None:
                 self.camera.update(ship.pos)
             else:
                 self.camera.update(Vec(C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2))
             self.renderer.draw_world(self.world)
-            draw_local_hud(self.screen, self.font, self.world, self.player_id, C.WHITE)
-            draw_scoreboard(self.screen, self.font, self.world, self.player_id, C.WHITE)
-            draw_match_overlay(self.screen, self.font, self.world, self.player_id, C.WHITE)
+            draw_local_hud(
+                self.screen, self.font, self.world, self.player_id, C.WHITE
+            )
+            draw_scoreboard(
+                self.screen, self.font, self.world, self.player_id, C.WHITE
+            )
+            draw_match_overlay(
+                self.screen, self.font, self.world, self.player_id, C.WHITE
+            )
         elif state == "lobby":
             self.camera.update(Vec(C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2))
             self.renderer.draw_world(self.world)
-            draw_waiting_screen(self.screen, self.font, self.big, self.world, C.WHITE)
+            draw_waiting_screen(
+                self.screen, self.font, self.big, self.world, C.WHITE
+            )
         else:  # "ended"
             self.camera.update(Vec(C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2))
             self.renderer.draw_world(self.world)
-            draw_scoreboard(self.screen, self.font, self.world, self.player_id, C.WHITE)
-            draw_match_end_screen(self.screen, self.font, self.big, self.world, C.WHITE)
+            draw_scoreboard(
+                self.screen, self.font, self.world, self.player_id, C.WHITE
+            )
+            draw_match_end_screen(
+                self.screen, self.font, self.big, self.world, C.WHITE
+            )
 
         pg.display.flip()
 
@@ -199,9 +227,15 @@ def main() -> None:
         prog="multiplayer.player",
         description="Asteroids networked player client.",
     )
-    parser.add_argument("--host", default="localhost", help="server host (default: localhost)")
-    parser.add_argument("--port", default=8765, type=int, help="server port (default: 8765)")
-    parser.add_argument("--name", default="player", help="display name (default: player)")
+    parser.add_argument(
+        "--host", default="localhost", help="server host (default: localhost)"
+    )
+    parser.add_argument(
+        "--port", default=8765, type=int, help="server port (default: 8765)"
+    )
+    parser.add_argument(
+        "--name", default="player", help="display name (default: player)"
+    )
     args = parser.parse_args()
 
     try:

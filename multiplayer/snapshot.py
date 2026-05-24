@@ -26,10 +26,12 @@ def snapshot_to_world(snap: dict[str, Any], world: World) -> None:
     """Mutate `world` in place to match `snap`."""
     _apply_ships(snap["ships"], world)
     world.bullets = [
-        Bullet(b["owner_id"], Vec(b["x"], b["y"]), Vec(b["vx"], b["vy"])) for b in snap["bullets"]
+        Bullet(b["owner_id"], Vec(b["x"], b["y"]), Vec(b["vx"], b["vy"]))
+        for b in snap["bullets"]
     ]
     world.asteroids = [
-        Asteroid(Vec(a["x"], a["y"]), Vec(a["vx"], a["vy"]), a["size"]) for a in snap["asteroids"]
+        Asteroid(Vec(a["x"], a["y"]), Vec(a["vx"], a["vy"]), a["size"])
+        for a in snap["asteroids"]
     ]
     world.ufos = [_build_ufo(u) for u in snap["ufos"]]
 
@@ -41,7 +43,9 @@ def snapshot_to_world(snap: dict[str, Any], world: World) -> None:
         int(entry["player_id"]): Countdown(entry["remaining"])
         for entry in snap.get("respawning", [])
     }
-    world.names = {int(pid): name for pid, name in snap.get("names", {}).items()}
+    world.names = {
+        int(pid): name for pid, name in snap.get("names", {}).items()
+    }
     world.match_state = snap.get("match_state", "running")
     world.match_timer.reset(snap.get("time_remaining", 0.0))
     world.winner_id = snap.get("winner_id")

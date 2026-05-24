@@ -56,7 +56,10 @@ class Renderer:
         label = self.font.render(text, True, self.config.WHITE)
         self.screen.blit(label, (10, 10))
 
-        if extra_life_remaining > 0.0 and int(extra_life_remaining * 6) % 2 == 0:
+        if (
+            extra_life_remaining > 0.0
+            and int(extra_life_remaining * 6) % 2 == 0
+        ):
             notice = self.big.render("EXTRA LIFE", True, self.config.WHITE)
             x = (self.config.WINDOW_WIDTH - notice.get_width()) // 2
             self.screen.blit(notice, (x, 60))
@@ -75,7 +78,9 @@ class Renderer:
         ]
         maxkey = max(len(k) for k, _ in controls)
         lines = [f"{k:<{maxkey}}  -  {a}" for k, a in controls]
-        labels = [self.font.render(line, True, self.config.WHITE) for line in lines]
+        labels = [
+            self.font.render(line, True, self.config.WHITE) for line in lines
+        ]
         widest = max(label.get_width() for label in labels)
         x = (self.config.WINDOW_WIDTH - widest) // 2
 
@@ -107,7 +112,9 @@ class Renderer:
 
     def _draw_bullet(self, bullet: Bullet) -> None:
         center = self.camera.world_to_screen(bullet.pos)
-        pg.draw.circle(self.screen, self.config.WHITE, center, bullet.r, width=1)
+        pg.draw.circle(
+            self.screen, self.config.WHITE, center, bullet.r, width=1
+        )
 
     def _draw_particle(self, particle: Particle) -> None:
         sx, sy = self.camera.world_to_screen(particle.pos)
@@ -130,9 +137,13 @@ class Renderer:
 
         center = self.camera.world_to_screen(ship.pos)
         if ship.invuln.active and int(ship.invuln.remaining * 10) % 2 == 0:
-            pg.draw.circle(self.screen, self.config.WHITE, center, ship.r + 6, width=1)
+            pg.draw.circle(
+                self.screen, self.config.WHITE, center, ship.r + 6, width=1
+            )
         if ship.shield.active:
-            pg.draw.circle(self.screen, self.config.WHITE, center, ship.r + 12, width=2)
+            pg.draw.circle(
+                self.screen, self.config.WHITE, center, ship.r + 12, width=2
+            )
 
     def _draw_ufo(self, ufo: UFO) -> None:
         cx, cy = self.camera.world_to_screen(ufo.pos)

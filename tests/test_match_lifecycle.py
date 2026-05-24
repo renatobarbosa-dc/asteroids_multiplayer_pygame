@@ -37,7 +37,9 @@ def test_lobby_update_is_noop_for_entities():
     w.update(1.0, {})
 
     assert w.match_state == "lobby"
-    assert (ast.pos.x, ast.pos.y) == before, "asteroid must not move during lobby"
+    assert (ast.pos.x, ast.pos.y) == before, (
+        "asteroid must not move during lobby"
+    )
 
 
 def test_lobby_update_ignores_player_commands():
@@ -48,7 +50,9 @@ def test_lobby_update_ignores_player_commands():
 
     w.update(0.5, {1: PlayerCommand(thrust=True)})
 
-    assert (ship.vel.x, ship.vel.y) == before_vel, "thrust must not apply during lobby"
+    assert (ship.vel.x, ship.vel.y) == before_vel, (
+        "thrust must not apply during lobby"
+    )
 
 
 def test_lobby_transitions_to_running_at_min_players():

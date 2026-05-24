@@ -108,7 +108,9 @@ def test_snapshot_to_world_removes_disconnected_players():
 def test_snapshot_to_world_rebuilds_bullets():
     w = World(spawn_default_player=False)
     snapshot_to_world(
-        _snapshot(bullets=[{"owner_id": 9, "x": 10, "y": 20, "vx": 5, "vy": 6}]),
+        _snapshot(
+            bullets=[{"owner_id": 9, "x": 10, "y": 20, "vx": 5, "vy": 6}]
+        ),
         w,
     )
 
@@ -122,7 +124,9 @@ def test_snapshot_to_world_rebuilds_bullets():
 def test_snapshot_to_world_rebuilds_asteroids_with_size():
     w = World(spawn_default_player=False)
     snapshot_to_world(
-        _snapshot(asteroids=[{"x": 30, "y": 40, "vx": 1, "vy": 2, "size": "M"}]),
+        _snapshot(
+            asteroids=[{"x": 30, "y": 40, "vx": 1, "vy": 2, "size": "M"}]
+        ),
         w,
     )
 
@@ -214,7 +218,7 @@ def test_snapshot_to_world_spawns_local_particles_from_events():
 
 
 def test_snapshot_to_world_omits_respawning_when_field_missing():
-    """Older or partial snapshots without a `respawning` field must not crash."""
+    """Older snapshots without a `respawning` field must not crash."""
     w = World(spawn_default_player=False)
     snap = {**EMPTY_SNAPSHOT}
     del snap["respawning"]
