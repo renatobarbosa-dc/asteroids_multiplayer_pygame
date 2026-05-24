@@ -50,8 +50,11 @@ class Server:
         self,
         host: str,
         port: int,
+        rooms: int = C.DEFAULT_ROOMS,
         profile_broadcast: bool = False,
     ) -> None:
+        if rooms < 1:
+            raise ValueError(f"rooms must be >= 1, got {rooms}")
         self.host = host
         self.port = port
         self.profile_broadcast = profile_broadcast
@@ -69,8 +72,14 @@ class Server:
         # Display names from the HELLO handshake, forwarded into every
         # snapshot so each client can render a scoreboard.
         self._names_by_player_id: dict[int, str] = {}
+        # Each player_id belongs to exactly one room; populated at handshake
+        # acceptance and consulted by tick, broadcast, and cleanup paths.
+        self.room_by_player_id: dict[int, int] = {}
 
-        self.world = World(spawn_default_player=False, deathmatch=True)
+        self.worlds: dict[int, World] = {
+            i: World(spawn_default_player=False, deathmatch=True)
+            for i in range(rooms)
+        }
 
     async def run(self) -> None:
         async with websockets.serve(
@@ -86,8 +95,30 @@ class Server:
         period = 1.0 / C.FPS
         while True:
             await asyncio.sleep(period)
-            self.world.update(dt, self._inputs_by_player_id)
+            for room_id, world in self.worlds.items():
+                world.update(dt, self._inputs_for_room(room_id))
             self.tick += 1
+
+    def _inputs_for_room(self, room_id: int) -> dict[int, PlayerCommand]:
+        return {
+            pid: cmd
+            for pid, cmd in self._inputs_by_player_id.items()
+            if self.room_by_player_id.get(pid) == room_id
+        }
+
+    def _names_for_room(self, room_id: int) -> dict[int, str]:
+        return {
+            pid: name
+            for pid, name in self._names_by_player_id.items()
+            if self.room_by_player_id.get(pid) == room_id
+        }
+
+    def _pids_in_room(self, room_id: int) -> list[int]:
+        return [
+            pid
+            for pid, rid in self.room_by_player_id.items()
+            if rid == room_id
+        ]
 
     async def _snapshot_loop(self) -> None:
         period = 1.0 / C.SNAPSHOT_HZ
@@ -100,24 +131,35 @@ class Server:
             return
         if self.profile_broadcast:
             t0 = time.perf_counter()
-        snap = world_to_snapshot(self.world, names=self._names_by_player_id)
         bytes_total = 0
-        for player_id, ws in list(self.connections.items()):
-            seq = self._seq_by_player_id.get(player_id, 0)
-            self._seq_by_player_id[player_id] = seq + 1
-            payload = envelope(SNAPSHOT, self.tick, seq, snap)
-            # Connection handler cleans up its own slot on close; skipping
-            # this client for the current frame is the right local response.
-            with contextlib.suppress(websockets.ConnectionClosed):
-                await ws.send(payload)
-                bytes_total += len(payload)
+        for room_id, world in self.worlds.items():
+            pids = self._pids_in_room(room_id)
+            if not pids:
+                continue
+            snap = world_to_snapshot(
+                world, names=self._names_for_room(room_id)
+            )
+            for player_id in pids:
+                ws = self.connections.get(player_id)
+                if ws is None:
+                    continue
+                seq = self._seq_by_player_id.get(player_id, 0)
+                self._seq_by_player_id[player_id] = seq + 1
+                payload = envelope(SNAPSHOT, self.tick, seq, snap)
+                # Connection handler cleans up its own slot on close;
+                # skipping this client for the current frame is the
+                # right local response.
+                with contextlib.suppress(websockets.ConnectionClosed):
+                    await ws.send(payload)
+                    bytes_total += len(payload)
         if self.profile_broadcast:
             elapsed_ms = (time.perf_counter() - t0) * 1000
             print(
                 f"broadcast tick={self.tick} "
                 f"ms={elapsed_ms:.2f} "
                 f"bytes={bytes_total} "
-                f"conns={len(self.connections)}",
+                f"conns={len(self.connections)} "
+                f"rooms={len(self.worlds)}",
                 file=sys.stderr,
             )
 
@@ -125,11 +167,12 @@ class Server:
         result = await self._handshake(ws)
         if result is None:
             return
-        player_id, name = result
+        player_id, name, room_id = result
 
         self.connections[player_id] = ws
         self._names_by_player_id[player_id] = name
-        self.world.spawn_player(player_id)
+        self.room_by_player_id[player_id] = room_id
+        self.worlds[room_id].spawn_player(player_id)
         try:
             async for raw in ws:
                 msg = parse(raw)
@@ -140,27 +183,35 @@ class Server:
                         msg["data"]
                     )
                 elif msg["type"] == RESTART_REQUEST:
-                    self._handle_restart_request()
+                    self._handle_restart_request(player_id)
         finally:
+            room_id = self.room_by_player_id.pop(player_id, 0)
             self.connections.pop(player_id, None)
             self._seq_by_player_id.pop(player_id, None)
             self._inputs_by_player_id.pop(player_id, None)
             self._names_by_player_id.pop(player_id, None)
-            self.world.despawn_player(player_id)
+            world = self.worlds.get(room_id)
+            if world is not None:
+                world.despawn_player(player_id)
 
-    def _handle_restart_request(self) -> None:
-        """Reset the world back to the lobby and re-spawn every connection.
+    def _handle_restart_request(self, player_id: int) -> None:
+        """Reset only the room that ``player_id`` belongs to and re-spawn
+        every player currently connected to that room.
 
         Idempotent: a request that arrives outside ``ended`` is a no-op,
         so duplicate ENTER presses from multiple clients cause one reset.
         """
-        if self.world.match_state != "ended":
+        room_id = self.room_by_player_id.get(player_id)
+        if room_id is None:
             return
-        self.world.reset()
-        for pid in self.connections:
-            self.world.spawn_player(pid)
+        world = self.worlds.get(room_id)
+        if world is None or world.match_state != "ended":
+            return
+        world.reset()
+        for pid in self._pids_in_room(room_id):
+            world.spawn_player(pid)
 
-    async def _handshake(self, ws: Any) -> tuple[int, str] | None:
+    async def _handshake(self, ws: Any) -> tuple[int, str, int] | None:
         try:
             raw = await asyncio.wait_for(ws.recv(), timeout=HANDSHAKE_TIMEOUT)
         except TimeoutError:
@@ -174,11 +225,16 @@ class Server:
             await ws.close()
             return None
 
-        if len(self.connections) >= C.MAX_PLAYERS:
-            await ws.send(
-                envelope(REJECT, self.tick, 0, {"reason": "server_full"})
-            )
-            await ws.close()
+        room_id = msg["data"].get("room_id", 0)
+        if not isinstance(room_id, int) or isinstance(room_id, bool):
+            await self._reject_and_close(ws, "invalid_room")
+            return None
+        if room_id not in self.worlds:
+            await self._reject_and_close(ws, "invalid_room")
+            return None
+
+        if len(self._pids_in_room(room_id)) >= C.MAX_PLAYERS:
+            await self._reject_and_close(ws, "room_full")
             return None
 
         player_id = self._next_player_id
@@ -192,7 +248,11 @@ class Server:
         await ws.send(
             envelope(WELCOME, self.tick, 0, {"player_id": player_id})
         )
-        return player_id, name
+        return player_id, name, room_id
+
+    async def _reject_and_close(self, ws: Any, reason: str) -> None:
+        await ws.send(envelope(REJECT, self.tick, 0, {"reason": reason}))
+        await ws.close()
 
 
 def main() -> None:
@@ -207,6 +267,12 @@ def main() -> None:
         "--port", default=8765, type=int, help="bind port (default: 8765)"
     )
     parser.add_argument(
+        "--rooms",
+        default=C.DEFAULT_ROOMS,
+        type=int,
+        help=f"number of concurrent rooms (default: {C.DEFAULT_ROOMS})",
+    )
+    parser.add_argument(
         "--profile-broadcast",
         action="store_true",
         help="log ms and bytes per broadcast to stderr",
@@ -216,6 +282,7 @@ def main() -> None:
     server = Server(
         args.host,
         args.port,
+        rooms=args.rooms,
         profile_broadcast=args.profile_broadcast,
     )
     try:

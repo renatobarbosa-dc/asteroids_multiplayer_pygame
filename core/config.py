@@ -10,8 +10,11 @@ WINDOW_HEIGHT = 720
 FPS = 60
 SNAPSHOT_HZ = 30
 
+# Per-room cap from F5 onward; before F5 this was the global server
+# cap. Single-room servers (default `--rooms 1`) keep the same effect.
 MAX_PLAYERS = 8
 LOCAL_PLAYER_ID = 1
+DEFAULT_ROOMS = 1
 
 START_LIVES = 3
 SAFE_SPAWN_TIME = 2.0
