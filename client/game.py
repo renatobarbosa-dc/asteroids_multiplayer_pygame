@@ -11,6 +11,7 @@ import pygame as pg
 
 from client.audio import load_sounds
 from client.audio_manager import AudioManager
+from client.camera import Camera
 from client.controls import InputMapper
 from client.renderer import Renderer
 from core import config as C
@@ -26,7 +27,7 @@ class Game:
         pg.init()
         pg.mixer.init()
 
-        self.screen = pg.display.set_mode((C.WIDTH, C.HEIGHT))
+        self.screen = pg.display.set_mode((C.WINDOW_WIDTH, C.WINDOW_HEIGHT))
         pg.display.set_caption("Asteroids")
 
         self.clock = pg.time.Clock()
@@ -34,8 +35,10 @@ class Game:
 
         self.font = pg.font.SysFont(C.FONT_NAME, C.FONT_SIZE_SMALL)
         self.big = pg.font.SysFont(C.FONT_NAME, C.FONT_SIZE_LARGE)
+        self.camera = Camera()
         self.renderer = Renderer(
             self.screen,
+            self.camera,
             config=C,
             fonts={"font": self.font, "big": self.big},
         )
@@ -110,6 +113,9 @@ class Game:
             pg.display.flip()
             return
 
+        ship = self.world.get_ship(C.LOCAL_PLAYER_ID)
+        if ship is not None:
+            self.camera.update(ship.pos)
         self.renderer.draw_world(self.world)
         self.renderer.draw_hud(
             self.world.scores.get(C.LOCAL_PLAYER_ID, 0),

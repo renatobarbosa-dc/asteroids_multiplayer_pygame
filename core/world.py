@@ -54,7 +54,7 @@ class World:
         self.__init__()
 
     def spawn_player(self, player_id: PlayerId) -> None:
-        pos = Vec(C.WIDTH / 2, C.HEIGHT / 2)
+        pos = Vec(C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2)
         ship = Ship(player_id, pos)
         ship.invuln.reset(C.SAFE_SPAWN_TIME)
 
@@ -173,13 +173,13 @@ class World:
         is saturated with asteroids.
         """
         for _ in range(C.HYPERSPACE_ATTEMPTS):
-            pos = Vec(uniform(0, C.WIDTH), uniform(0, C.HEIGHT))
+            pos = Vec(uniform(0, C.WORLD_WIDTH), uniform(0, C.WORLD_HEIGHT))
             if all(
                 (pos - ast.pos).length() > (ast.r + ship.r + C.HYPERSPACE_SAFE_MARGIN)
                 for ast in self.asteroids
             ):
                 return pos
-        return Vec(uniform(0, C.WIDTH), uniform(0, C.HEIGHT))
+        return Vec(uniform(0, C.WORLD_WIDTH), uniform(0, C.WORLD_HEIGHT))
 
     def _update_timers(self, dt: float) -> None:
         if self.ufo_timer.tick(dt):
@@ -237,7 +237,7 @@ class World:
     def _ship_die(self, ship: Ship) -> None:
         pid = ship.player_id
         self.lives[pid] = self.lives[pid] - 1
-        ship.pos.xy = (C.WIDTH / 2, C.HEIGHT / 2)
+        ship.pos.xy = (C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2)
         ship.vel.xy = (0, 0)
         ship.angle = -90.0
         ship.invuln.reset(C.SAFE_SPAWN_TIME)

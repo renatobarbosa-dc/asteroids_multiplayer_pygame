@@ -283,27 +283,27 @@ class UFO(Entity):
 
         mode = choice(["h", "v", "d"])
         if mode == "h":
-            y = uniform(0, C.HEIGHT)
+            y = uniform(0, C.WORLD_HEIGHT)
             left_to_right = uniform(0, 1) < 0.5
-            self.pos = Vec(0 if left_to_right else C.WIDTH, y)
+            self.pos = Vec(0 if left_to_right else C.WORLD_WIDTH, y)
             self.vel = Vec(1 if left_to_right else -1, 0) * self.speed
             return
 
         if mode == "v":
-            x = uniform(0, C.WIDTH)
+            x = uniform(0, C.WORLD_WIDTH)
             top_to_bottom = uniform(0, 1) < 0.5
-            self.pos = Vec(x, 0 if top_to_bottom else C.HEIGHT)
+            self.pos = Vec(x, 0 if top_to_bottom else C.WORLD_HEIGHT)
             self.vel = Vec(0, 1 if top_to_bottom else -1) * self.speed
             return
 
         corners = [
             Vec(0, 0),
-            Vec(C.WIDTH, 0),
-            Vec(0, C.HEIGHT),
-            Vec(C.WIDTH, C.HEIGHT),
+            Vec(C.WORLD_WIDTH, 0),
+            Vec(0, C.WORLD_HEIGHT),
+            Vec(C.WORLD_WIDTH, C.WORLD_HEIGHT),
         ]
         start = choice(corners)
-        target = Vec(C.WIDTH - start.x, C.HEIGHT - start.y)
+        target = Vec(C.WORLD_WIDTH - start.x, C.WORLD_HEIGHT - start.y)
         self.pos = Vec(start)
         dirv = target - start
         if dirv.length_squared() > 0:
@@ -331,8 +331,8 @@ class UFO(Entity):
 
     def _kill_if_outside_screen(self) -> None:
         margin = self.r
-        out_x = self.pos.x < -margin or self.pos.x > C.WIDTH + margin
-        out_y = self.pos.y < -margin or self.pos.y > C.HEIGHT + margin
+        out_x = self.pos.x < -margin or self.pos.x > C.WORLD_WIDTH + margin
+        out_y = self.pos.y < -margin or self.pos.y > C.WORLD_HEIGHT + margin
         if out_x or out_y:
             self.kill()
 

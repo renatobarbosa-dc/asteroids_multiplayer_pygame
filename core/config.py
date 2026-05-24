@@ -2,8 +2,11 @@
 
 import os
 
-WIDTH = 800
-HEIGHT = 600
+# World is the simulation playfield (4K). Window is the slice the player sees.
+WORLD_WIDTH = 3840
+WORLD_HEIGHT = 2160
+WINDOW_WIDTH = 1280
+WINDOW_HEIGHT = 720
 FPS = 60
 
 MAX_PLAYERS = 8
@@ -12,7 +15,9 @@ LOCAL_PLAYER_ID = 1
 START_LIVES = 3
 SAFE_SPAWN_TIME = 2.0
 WAVE_DELAY = 2.0
-WAVE_BASE_COUNT = 3
+# Wave count tuned for the 4K world: 32x larger area than the original 800x600,
+# so we start with roughly 4x the spawn rate (one asteroid per ~1.3 megapixels).
+WAVE_BASE_COUNT = 12
 EXTRA_LIFE_EVERY = 5000
 EXTRA_LIFE_NOTICE_TIME = 1.5
 
@@ -41,7 +46,7 @@ AST_VEL_MAX = 90.0
 AST_POLY_STEPS = {"L": 12, "M": 10, "S": 8}
 AST_POLY_JITTER_MIN = 0.75
 AST_POLY_JITTER_MAX = 1.2
-AST_MIN_SPAWN_DIST = 150
+AST_MIN_SPAWN_DIST = 300
 AST_SPLIT_SPEED_MULT = 1.2
 AST_SIZES = {
     "L": {"r": 46, "score": 20, "split": ["M", "M"]},
@@ -53,7 +58,7 @@ BULLET_RADIUS = 2
 BULLET_TTL = 1.0
 MAX_BULLETS_PER_PLAYER = 4
 
-UFO_SPAWN_EVERY = 12.0
+UFO_SPAWN_EVERY = 8.0
 UFO_SPEED_BIG = 95.0
 UFO_SPEED_SMALL = 120.0
 UFO_BIG = {"r": 18, "score": 200}

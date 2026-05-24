@@ -2,6 +2,7 @@
 
 import pygame as pg
 
+from client.camera import Camera
 from core import config as C
 from core.entities import UFO, Asteroid, Bullet, Particle, Ship
 from core.scene import SceneState
@@ -13,10 +14,12 @@ class Renderer:
     def __init__(
         self,
         screen: pg.Surface,
+        camera: Camera,
         config: object = C,
         fonts: dict[str, pg.font.Font] | None = None,
     ) -> None:
         self.screen = screen
+        self.camera = camera
         self.config = config
         safe_fonts = fonts or {}
         self.font = safe_fonts["font"]
@@ -55,7 +58,7 @@ class Renderer:
 
         if extra_life_remaining > 0.0 and int(extra_life_remaining * 6) % 2 == 0:
             notice = self.big.render("EXTRA LIFE", True, self.config.WHITE)
-            x = (self.config.WIDTH - notice.get_width()) // 2
+            x = (self.config.WINDOW_WIDTH - notice.get_width()) // 2
             self.screen.blit(notice, (x, 60))
 
     def draw_menu(self) -> None:
@@ -74,7 +77,7 @@ class Renderer:
         lines = [f"{k:<{maxkey}}  -  {a}" for k, a in controls]
         labels = [self.font.render(line, True, self.config.WHITE) for line in lines]
         widest = max(label.get_width() for label in labels)
-        x = (self.config.WIDTH - widest) // 2
+        x = (self.config.WINDOW_WIDTH - widest) // 2
 
         y = 290
         for label in labels:
@@ -99,68 +102,47 @@ class Renderer:
 
     def _draw_centered(self, font: pg.font.Font, text: str, y: int) -> None:
         label = font.render(text, True, self.config.WHITE)
-        x = (self.config.WIDTH - label.get_width()) // 2
+        x = (self.config.WINDOW_WIDTH - label.get_width()) // 2
         self.screen.blit(label, (x, y))
 
     def _draw_bullet(self, bullet: Bullet) -> None:
-        center = (int(bullet.pos.x), int(bullet.pos.y))
-        pg.draw.circle(
-            self.screen,
-            self.config.WHITE,
-            center,
-            bullet.r,
-            width=1,
-        )
+        center = self.camera.world_to_screen(bullet.pos)
+        pg.draw.circle(self.screen, self.config.WHITE, center, bullet.r, width=1)
 
     def _draw_particle(self, particle: Particle) -> None:
-        rect = pg.Rect(int(particle.pos.x), int(particle.pos.y), 2, 2)
+        sx, sy = self.camera.world_to_screen(particle.pos)
+        rect = pg.Rect(sx, sy, 2, 2)
         self.screen.fill(self.config.WHITE, rect)
 
     def _draw_asteroid(self, asteroid: Asteroid) -> None:
-        points = []
-        for point in asteroid.poly:
-            px = int(asteroid.pos.x + point.x)
-            py = int(asteroid.pos.y + point.y)
-            points.append((px, py))
+        ox, oy = self.camera.world_to_screen(asteroid.pos)
+        points = [(ox + int(p.x), oy + int(p.y)) for p in asteroid.poly]
         pg.draw.polygon(self.screen, self.config.WHITE, points, width=1)
 
     def _draw_ship(self, ship: Ship) -> None:
         p1, p2, p3 = ship.ship_points()
         points = [
-            (int(p1.x), int(p1.y)),
-            (int(p2.x), int(p2.y)),
-            (int(p3.x), int(p3.y)),
+            self.camera.world_to_screen(p1),
+            self.camera.world_to_screen(p2),
+            self.camera.world_to_screen(p3),
         ]
         pg.draw.polygon(self.screen, self.config.WHITE, points, width=1)
 
+        center = self.camera.world_to_screen(ship.pos)
         if ship.invuln.active and int(ship.invuln.remaining * 10) % 2 == 0:
-            center = (int(ship.pos.x), int(ship.pos.y))
-            pg.draw.circle(
-                self.screen,
-                self.config.WHITE,
-                center,
-                ship.r + 6,
-                width=1,
-            )
-
+            pg.draw.circle(self.screen, self.config.WHITE, center, ship.r + 6, width=1)
         if ship.shield.active:
-            center = (int(ship.pos.x), int(ship.pos.y))
-            pg.draw.circle(
-                self.screen,
-                self.config.WHITE,
-                center,
-                ship.r + 12,
-                width=2,
-            )
+            pg.draw.circle(self.screen, self.config.WHITE, center, ship.r + 12, width=2)
 
     def _draw_ufo(self, ufo: UFO) -> None:
+        cx, cy = self.camera.world_to_screen(ufo.pos)
         width = ufo.r * 2
         height = ufo.r
 
         body = pg.Rect(0, 0, width, height)
-        body.center = (int(ufo.pos.x), int(ufo.pos.y))
+        body.center = (cx, cy)
         pg.draw.ellipse(self.screen, self.config.WHITE, body, width=1)
 
         cup = pg.Rect(0, 0, int(width * 0.5), int(height * 0.7))
-        cup.center = (int(ufo.pos.x), int(ufo.pos.y - height * 0.3))
+        cup.center = (cx, cy - int(height * 0.3))
         pg.draw.ellipse(self.screen, self.config.WHITE, cup, width=1)

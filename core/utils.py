@@ -116,7 +116,7 @@ class Countdown:
 
 
 def wrap_pos(pos: Vec) -> Vec:
-    return Vec(pos.x % C.WIDTH, pos.y % C.HEIGHT)
+    return Vec(pos.x % C.WORLD_WIDTH, pos.y % C.WORLD_HEIGHT)
 
 
 def angle_to_vec(deg: float) -> Vec:
@@ -131,9 +131,9 @@ def rand_unit_vec() -> Vec:
 
 def rand_edge_pos() -> Vec:
     if random() < 0.5:
-        x = uniform(0, C.WIDTH)
-        y = 0 if random() < 0.5 else C.HEIGHT
+        x = uniform(0, C.WORLD_WIDTH)
+        y = 0 if random() < 0.5 else C.WORLD_HEIGHT
     else:
-        x = 0 if random() < 0.5 else C.WIDTH
-        y = uniform(0, C.HEIGHT)
+        x = 0 if random() < 0.5 else C.WORLD_WIDTH
+        y = uniform(0, C.WORLD_HEIGHT)
     return Vec(x, y)
