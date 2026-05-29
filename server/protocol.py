@@ -67,6 +67,17 @@ def parse(raw: str | bytes) -> dict[str, Any] | None:
     return msg
 
 
+def _r(v: float) -> float:
+    """Round a wire float to 1 decimal to trim snapshot bytes.
+
+    0.1-unit precision is invisible in a 3840x2160 world and far below
+    the client's prediction snap threshold, but positions/velocities
+    dominate the JSON payload, so rounding them cuts a large fraction of
+    the bytes.
+    """
+    return round(v, 1)
+
+
 def world_to_snapshot(
     world: World,
     names: dict[int, str] | None = None,
@@ -98,33 +109,33 @@ def world_to_snapshot(
         "ships": [
             {
                 "player_id": s.player_id,
-                "x": s.pos.x,
-                "y": s.pos.y,
-                "angle": s.angle,
-                "vx": s.vel.x,
-                "vy": s.vel.y,
+                "x": _r(s.pos.x),
+                "y": _r(s.pos.y),
+                "angle": _r(s.angle),
+                "vx": _r(s.vel.x),
+                "vy": _r(s.vel.y),
                 "shield_active": s.shield.active,
                 "invuln_active": s.invuln.active,
-                "shield_cd_remaining": s.shield_cd.remaining,
+                "shield_cd_remaining": _r(s.shield_cd.remaining),
             }
             for s in world.ships.values()
         ],
         "bullets": [
             {
                 "owner_id": b.owner_id,
-                "x": b.pos.x,
-                "y": b.pos.y,
-                "vx": b.vel.x,
-                "vy": b.vel.y,
+                "x": _r(b.pos.x),
+                "y": _r(b.pos.y),
+                "vx": _r(b.vel.x),
+                "vy": _r(b.vel.y),
             }
             for b in world.bullets
         ],
         "asteroids": [
             {
-                "x": a.pos.x,
-                "y": a.pos.y,
-                "vx": a.vel.x,
-                "vy": a.vel.y,
+                "x": _r(a.pos.x),
+                "y": _r(a.pos.y),
+                "vx": _r(a.vel.x),
+                "vy": _r(a.vel.y),
                 "size": a.size,
                 "poly_seed": a.poly_seed,
             }
@@ -132,10 +143,10 @@ def world_to_snapshot(
         ],
         "ufos": [
             {
-                "x": u.pos.x,
-                "y": u.pos.y,
-                "vx": u.vel.x,
-                "vy": u.vel.y,
+                "x": _r(u.pos.x),
+                "y": _r(u.pos.y),
+                "vx": _r(u.vel.x),
+                "vy": _r(u.vel.y),
                 "small": u.small,
             }
             for u in world.ufos
@@ -144,17 +155,17 @@ def world_to_snapshot(
         "lives": {str(pid): lives for pid, lives in world.lives.items()},
         "deaths": {str(pid): n for pid, n in world.deaths.items()},
         "respawning": [
-            {"player_id": pid, "remaining": cd.remaining}
+            {"player_id": pid, "remaining": _r(cd.remaining)}
             for pid, cd in world.respawning.items()
         ],
         "events": [
-            {"kind": kind, "x": pos.x, "y": pos.y}
+            {"kind": kind, "x": _r(pos.x), "y": _r(pos.y)}
             for kind, pos in world.particle_events
         ],
         "audio_events": list(world.events),
         "names": {str(pid): name for pid, name in (names or {}).items()},
         "match_state": world.match_state,
-        "time_remaining": world.match_timer.remaining,
+        "time_remaining": _r(world.match_timer.remaining),
         "frags": {str(pid): n for pid, n in world.frags.items()},
         "winner_id": world.winner_id,
         "wave": world.wave,
