@@ -20,7 +20,9 @@ INPUT_QUEUE_CAP = 8
 # Remote ships are rendered this many seconds in the past, interpolated
 # between the two buffered snapshots that straddle that time — smoother
 # than extrapolation, at the cost of a little latency on other players.
-INTERP_DELAY = 0.05
+# 0.035 is about one 30 Hz snapshot interval (33 ms) plus a small margin;
+# kept low because the measured network jitter is well under 1 ms.
+INTERP_DELAY = 0.035
 
 # Per-room cap from F5 onward; before F5 this was the global server
 # cap. Single-room servers (default `--rooms 1`) keep the same effect.
