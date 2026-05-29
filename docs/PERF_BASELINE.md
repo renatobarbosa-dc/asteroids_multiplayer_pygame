@@ -125,6 +125,7 @@ Append rows here as future phases re-measure:
 |------|----------------|----------:|---------------:|----------|
 | 2026-05-24 | post-F4, post-PEP-8 (`33de4dc`) | 0.85 ms | 8 359 | baseline; no optimization activated |
 | 2026-05-24 | post-F5 (`6322f5a`) | 0.81 ms (1 room) → 0.30 ms (8 rooms) | unchanged | F5 multi-room **reduces** tick cost when load is split; no optimization activated |
+| 2026-05-29 | post-F6 netcode (`dd680e1`) | 0.81 ms (unchanged) | 4 288 → 3 298 (−23 %, #50) | no optimization activated; latency hidden by prediction; INTERP_DELAY 50→35 ms (#49) |
 
 ## 7. F5 multi-room measurement
 
@@ -189,3 +190,75 @@ future build raises `MAX_PLAYERS` above 8 or if `WAVE_BASE_COUNT`
 grows past ~30 asteroids per room, the per-room cost climbs as
 `O(ships × asteroids)` and the threshold can flip. Re-run this
 section before changing either constant.
+
+## 8. F6 netcode review (prediction, reconciliation, interpolation)
+
+Re-measured after F6 shipped client-side prediction, server
+reconciliation (input ack), and remote-ship interpolation. F6 added a
+new cost surface — per-frame work on the client — so this section
+covers both the server tick and the client frame, plus the snapshot
+size after the float-rounding change.
+
+### Method
+
+```
+.venv/bin/python scripts/profile_tick.py --ticks 600 --ships 8 --asteroids 30 --rooms 1
+```
+
+Plus microbenchmarks of the client per-frame functions, and a
+before/after byte count of `world_to_snapshot` on a representative
+world (4 ships, a 20-asteroid wave, 8 bullets), with positions advanced
+180 ticks so they carry realistic float representations.
+
+### Numbers (MacBook Air M2, Python 3.13, single thread)
+
+Server tick is unchanged from §7: F6's input-queue drain and per-player
+ack injection are negligible.
+
+| Path | Cost | % of 60 Hz budget (16.67 ms) | Decision |
+|------|-----:|-----------------------------:|----------|
+| Server tick (1 room × 8 ships) | 0.807 ms | 4.85 % | **skip** |
+| Client `simulate_from_authority` (8-input replay, per frame) | 8.5 µs | 3.06 % | **skip** |
+| Client `interpolate_ships` (8 snapshots, 4 ships, per frame) | 0.26 µs | 0.09 % | **skip** |
+| Client `snapshot_to_world` rebuild (per 30 Hz snapshot) | 227 µs | < 0.05 % amortized | **skip** |
+
+Total client per-frame cost stays under 5 % of the frame budget.
+
+Snapshot size, before and after rounding wire floats to 1 decimal (#50):
+
+| Snapshot | Bytes | At 30 Hz × 8 players |
+|----------|------:|---------------------:|
+| Full precision | 4 288 | 1.03 Mbit/s |
+| Rounded (1 dp)  | 3 298 | 0.79 Mbit/s |
+
+About 23 % smaller. Asteroids dominate the payload and their positions
+carry the longest float representations, so they account for most of
+the saving.
+
+### Hotspot analysis vs. threshold
+
+Threshold from §5 unchanged. No path, server or client, reaches it: the
+server tick is 4.85 % of budget and the hottest client function is 3 %
+of one frame. **No CPU optimization is activated**, the same outcome as
+the pre-F5 review.
+
+### What F6 changed instead
+
+The felt problem on the public VPS (~140-180 ms RTT) was latency, not
+CPU. F6 hides it with prediction rather than optimizing code. Two small
+follow-ups cut the remaining latency and bandwidth without touching any
+hot path:
+
+- **#49** — `INTERP_DELAY` 50 ms → 35 ms: removes ~15 ms from the
+  perceived latency of remote ships, safe because measured jitter is
+  well under 1 ms.
+- **#50** — round snapshot floats: ~23 % smaller snapshots, less queuing
+  delay and jitter for players on congested connections.
+
+### When would this revisit?
+
+Same trigger as §7 for the server (ships per room). On the client,
+`simulate_from_authority` scales with the unconfirmed-input count, which
+is bounded by RTT × send rate; even at a ~16-input worst case it stays
+under 6 % of one frame. Revisit only if latency compensation ever has
+to replay a much longer history.
