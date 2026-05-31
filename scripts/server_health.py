@@ -15,7 +15,7 @@ So depende de ``websockets`` (ja instalado pelo requirements.txt).
 
 Uso:
     python scripts/server_health.py
-    python scripts/server_health.py --host 2.25.147.96 --port 8765
+    python scripts/server_health.py --host 191.252.102.250 --port 8765
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ import time
 
 from websockets.sync.client import connect
 
-DEFAULT_HOST = "2.25.147.96"
+DEFAULT_HOST = "191.252.102.250"
 DEFAULT_PORT = 8765
 TIMEOUT = 8.0
 

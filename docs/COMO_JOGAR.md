@@ -8,7 +8,7 @@ Guia rápido para entrar no servidor da turma usando o **VS Code**.
 
 | Dado | Valor |
 |---|---|
-| Servidor (host) | `2.25.147.96` |
+| Servidor (host) | `191.252.102.250` |
 | Porta | `8765` |
 | Token | _(o professor te dá — ex.: `Zk3pQ9mXr2T`)_ |
 | Sala | _(o professor te dá: 0 a 7)_ |
@@ -50,13 +50,13 @@ No Windows, se o PowerShell recusar o `Activate.ps1`, use o **Prompt de Comando*
 No terminal integrado (`Ctrl` + crase) — com o `.venv` já ativo — rode, **trocando** token, sala e nome:
 
 ```
-python -m multiplayer.player --host 2.25.147.96 --port 8765 --token SEU_TOKEN --room SUA_SALA --name SEU_NOME
+python -m multiplayer.player --host 191.252.102.250 --port 8765 --token SEU_TOKEN --room SUA_SALA --name SEU_NOME
 ```
 
 Exemplo:
 
 ```
-python -m multiplayer.player --host 2.25.147.96 --port 8765 --token Zk3pQ9mXr2T --room 0 --name Ana
+python -m multiplayer.player --host 191.252.102.250 --port 8765 --token Zk3pQ9mXr2T --room 0 --name Ana
 ```
 
 Abre a janela do jogo. **A partida começa quando 2 jogadores entram na mesma sala.** Use um nome de uma palavra (sem espaços).
@@ -82,7 +82,7 @@ Antes de achar que o problema é com você, dá para checar o servidor em um com
 python scripts/server_health.py
 ```
 
-- **No ar:** `SERVIDOR NO AR -- ws://2.25.147.96:8765 respondeu em 730 ms.`
+- **No ar:** `SERVIDOR NO AR -- ws://191.252.102.250:8765 respondeu em 730 ms.`
 - **Fora do ar:** `SERVIDOR FORA DO AR -- ...` (porta fechada ou servidor desligado fora do horário da aula).
 
 Não precisa de token: é seguro rodar a qualquer momento. Se der **no ar** mas você ainda não entra, o problema é o seu token, sua sala ou seu nome — veja a tabela abaixo.
