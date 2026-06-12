@@ -96,6 +96,77 @@ class Bullet(Entity):
             self.kill()
 
 
+def _laser_end_pos(start: Vec, dirv: Vec) -> Vec:
+    """Return the world-boundary intersection point of a ray from start in dirv."""
+    t = float("inf")
+    if dirv.x > 0:
+        t = min(t, (C.WORLD_WIDTH - start.x) / dirv.x)
+    elif dirv.x < 0:
+        t = min(t, -start.x / dirv.x)
+    if dirv.y > 0:
+        t = min(t, (C.WORLD_HEIGHT - start.y) / dirv.y)
+    elif dirv.y < 0:
+        t = min(t, -start.y / dirv.y)
+    if t == float("inf") or t <= 0:
+        t = float(max(C.WORLD_WIDTH, C.WORLD_HEIGHT))
+    return start + dirv * t
+
+
+class LaserBeam(Entity):
+    """Instantaneous laser beam fired from a ship with the laser powerup.
+
+    Collision is resolved only on the first tick (resolved flag). The entity
+    remains alive for LASER_BEAM_TTL seconds so the renderer can draw the
+    visual flash.
+    """
+
+    __slots__ = ("owner_id", "pos", "end_pos", "ttl", "resolved")
+
+    def __init__(
+        self,
+        owner_id: PlayerId,
+        pos: Vec,
+        end_pos: Vec,
+        ttl: float = C.LASER_BEAM_TTL,
+    ) -> None:
+        super().__init__()
+        self.owner_id = owner_id
+        self.pos = Vec(pos)
+        self.end_pos = Vec(end_pos)
+        self.ttl = float(ttl)
+        self.resolved = False
+
+    def update(self, dt: float) -> None:
+        self.ttl -= dt
+        if self.ttl <= 0.0:
+            self.kill()
+
+
+class LaserPowerup(Entity):
+    """Collectible powerup that grants the ship a laser weapon for LASER_DURATION seconds."""
+
+    __slots__ = ("pos", "vel", "ttl", "r")
+
+    def __init__(
+        self,
+        pos: Vec,
+        vel: Vec,
+        ttl: float = C.LASER_POWERUP_TTL,
+    ) -> None:
+        super().__init__()
+        self.pos = Vec(pos)
+        self.vel = Vec(vel)
+        self.ttl = float(ttl)
+        self.r = int(C.LASER_POWERUP_RADIUS)
+
+    def update(self, dt: float) -> None:
+        self.pos += self.vel * dt
+        self.pos = wrap_pos(self.pos)
+        self.ttl -= dt
+        if self.ttl <= 0.0:
+            self.kill()
+
+
 class Asteroid(Entity):
     """Asteroid with irregular polygon shape.
 
@@ -159,6 +230,7 @@ class Ship(Entity):
         "shield",
         "shield_cd",
         "r",
+        "laser",
     )
 
     def __init__(self, player_id: PlayerId, pos: Vec) -> None:
@@ -173,13 +245,14 @@ class Ship(Entity):
         self.shield = Countdown()
         self.shield_cd = Countdown()
         self.r = int(C.SHIP_RADIUS)
+        self.laser = Countdown()
 
     def apply_command(
         self,
         cmd: PlayerCommand,
         dt: float,
         bullets: list[Bullet],
-    ) -> Bullet | None:
+    ) -> "Bullet | LaserBeam | None":
         if cmd.rotate_left and not cmd.rotate_right:
             self.angle -= C.SHIP_TURN_SPEED * dt
         elif cmd.rotate_right and not cmd.rotate_left:
@@ -195,20 +268,25 @@ class Ship(Entity):
 
         return None
 
-    def _try_fire(self, bullets: list[Bullet]) -> Bullet | None:
+    def _try_fire(self, bullets: list[Bullet]) -> "Bullet | LaserBeam | None":
         if self.cool.active:
             return None
+
+        dirv = angle_to_vec(self.angle)
+        spawn = self.pos + dirv * (self.r + C.BULLET_SPAWN_OFFSET)
+
+        if self.laser.active:
+            end = _laser_end_pos(spawn, dirv)
+            self.cool.reset(C.LASER_FIRE_RATE)
+            return LaserBeam(self.player_id, spawn, end)
 
         count = sum(1 for b in bullets if b.owner_id == self.player_id)
         if count >= C.MAX_BULLETS_PER_PLAYER:
             return None
 
-        dirv = angle_to_vec(self.angle)
-        pos = self.pos + dirv * (self.r + C.BULLET_SPAWN_OFFSET)
         vel = self.vel + dirv * C.SHIP_BULLET_SPEED
-
         self.cool.reset(C.SHIP_FIRE_RATE)
-        return Bullet(self.player_id, pos, vel, ttl=C.BULLET_TTL)
+        return Bullet(self.player_id, spawn, vel, ttl=C.BULLET_TTL)
 
     def hyperspace(self, pos: Vec) -> None:
         """Teleport to the given position. Caller picks a safe spot."""
@@ -229,6 +307,7 @@ class Ship(Entity):
         self.invuln.tick(dt)
         self.shield.tick(dt)
         self.shield_cd.tick(dt)
+        self.laser.tick(dt)
 
         self.pos += self.vel * dt
         self.pos = wrap_pos(self.pos)

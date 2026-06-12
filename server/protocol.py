@@ -117,6 +117,7 @@ def world_to_snapshot(
                 "shield_active": s.shield.active,
                 "invuln_active": s.invuln.active,
                 "shield_cd_remaining": _r(s.shield_cd.remaining),
+                "laser_remaining": _r(s.laser.remaining),
             }
             for s in world.ships.values()
         ],
@@ -161,6 +162,26 @@ def world_to_snapshot(
         "events": [
             {"kind": kind, "x": _r(pos.x), "y": _r(pos.y)}
             for kind, pos in world.particle_events
+        ],
+        "powerups": [
+            {
+                "x": _r(p.pos.x),
+                "y": _r(p.pos.y),
+                "vx": _r(p.vel.x),
+                "vy": _r(p.vel.y),
+                "ttl": _r(p.ttl),
+            }
+            for p in world.powerups
+        ],
+        "laser_events": [
+            {
+                "owner_id": oid,
+                "x": _r(s.x),
+                "y": _r(s.y),
+                "ex": _r(e.x),
+                "ey": _r(e.y),
+            }
+            for oid, s, e in world.laser_events
         ],
         "audio_events": list(world.events),
         "names": {str(pid): name for pid, name in (names or {}).items()},

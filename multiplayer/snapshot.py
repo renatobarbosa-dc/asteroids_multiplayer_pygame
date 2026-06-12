@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.entities import UFO, Asteroid, Bullet, Ship
+from core.entities import UFO, Asteroid, Bullet, LaserBeam, LaserPowerup, Ship
 from core.utils import Countdown, Vec
 from core.world import World
 
@@ -39,6 +39,15 @@ def snapshot_to_world(snap: dict[str, Any], world: World) -> None:
         for a in snap["asteroids"]
     ]
     world.ufos = [_build_ufo(u) for u in snap["ufos"]]
+
+    world.powerups = [
+        LaserPowerup(Vec(p["x"], p["y"]), Vec(p["vx"], p["vy"]), ttl=p["ttl"])
+        for p in snap.get("powerups", [])
+    ]
+    for ev in snap.get("laser_events", []):
+        world.lasers.append(
+            LaserBeam(ev["owner_id"], Vec(ev["x"], ev["y"]), Vec(ev["ex"], ev["ey"]))
+        )
 
     world.scores = {int(pid): score for pid, score in snap["scores"].items()}
     world.lives = {int(pid): lives for pid, lives in snap["lives"].items()}
@@ -80,6 +89,7 @@ def _apply_ships(ships_snap: list[dict[str, Any]], world: World) -> None:
         ship.shield.reset(_ACTIVE_PULSE if s["shield_active"] else 0.0)
         ship.invuln.reset(_ACTIVE_PULSE if s["invuln_active"] else 0.0)
         ship.shield_cd.reset(s["shield_cd_remaining"])
+        ship.laser.reset(s.get("laser_remaining", 0.0))
         new_ships[pid] = ship
     world.ships = new_ships
 
