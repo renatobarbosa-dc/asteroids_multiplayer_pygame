@@ -133,6 +133,14 @@ FONT_NAME = "consolas"
 
 RANDOM_SEED = None
 
+# Laser powerup
+LASER_POWERUP_RADIUS = 14
+LASER_POWERUP_TTL = 15.0
+LASER_POWERUP_SPAWN_EVERY = 20.0
+LASER_DURATION = 8.0
+LASER_BEAM_TTL = 0.15
+LASER_FIRE_RATE = 0.5
+
 # Paths (work from any execution directory).
 # config.py lives in core/, so we go one level up to the project root.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -146,3 +154,5 @@ SHIP_EXPLOSION = "ship_explosion.wav"
 THRUST_LOOP = "thrust_loop.wav"
 UFO_SIREN_BIG = "ufo_siren_big.wav"
 UFO_SIREN_SMALL = "ufo_siren_small.wav"
+LASER_PICKUP = "laser_pickup.wav"
+LASER_SHOOT = "laser_shoot.wav"

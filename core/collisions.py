@@ -11,10 +11,30 @@ from core.entities import (
     UFO_BULLET_OWNER,
     Asteroid,
     Bullet,
+    LaserBeam,
+    LaserPowerup,
     PlayerId,
     Ship,
 )
 from core.utils import Vec, rand_unit_vec
+
+
+def _segment_circle_hit(
+    seg_a: Vec, seg_b: Vec, center: Vec, radius: float
+) -> bool:
+    """Return True when segment AB intersects a circle at center with radius."""
+    ab = seg_b - seg_a
+    ac = center - seg_a
+    ab_len_sq = ab.length_squared()
+    if ab_len_sq < 1e-10:
+        return ac.length() < radius
+    t = (ac.x * ab.x + ac.y * ab.y) / ab_len_sq
+    t = max(0.0, min(1.0, t))
+    closest_x = seg_a.x + ab.x * t
+    closest_y = seg_a.y + ab.y * t
+    dx = center.x - closest_x
+    dy = center.y - closest_y
+    return dx * dx + dy * dy < radius * radius
 
 
 @dataclass
@@ -33,6 +53,8 @@ class CollisionResult:
     # (position, kind) — kind is "asteroid", "ufo", or "ship"; World looks up
     # the count/speed/ttl tuple in core.config and spawns the particles.
     particles_to_spawn: list[tuple[Vec, str]] = field(default_factory=list)
+    # (player_id, powerup_pos) pairs for each laser powerup collected this tick.
+    powerup_pickups: list[tuple[PlayerId, Vec]] = field(default_factory=list)
 
 
 class CollisionManager:
@@ -44,8 +66,18 @@ class CollisionManager:
         bullets: list[Bullet],
         asteroids: list[Asteroid],
         ufos: list[UFO],
+        powerups: list[LaserPowerup] | None = None,
+        lasers: list[LaserBeam] | None = None,
     ) -> CollisionResult:
         result = CollisionResult()
+        if powerups is not None:
+            self._ship_vs_powerups(ships, powerups, result)
+        if lasers:
+            self._laser_vs_asteroids(lasers, asteroids, result)
+            self._laser_vs_ufos(lasers, ufos, result)
+            self._laser_vs_ships(lasers, ships, result)
+            for laser in lasers:
+                laser.resolved = True
         self._bullets_vs_asteroids(bullets, asteroids, result)
         self._ufo_vs_player_bullets(ufos, bullets, result)
         self._bullets_vs_ships(ships, bullets, result)
@@ -230,6 +262,86 @@ class CollisionManager:
                     )
                     result.ship_deaths.append(ship.player_id)
                     break
+
+    def _ship_vs_powerups(
+        self,
+        ships: dict[PlayerId, Ship],
+        powerups: list[LaserPowerup],
+        result: CollisionResult,
+    ) -> None:
+        """Ship overlaps laser powerup: powerup is collected."""
+        for powerup in powerups:
+            if not powerup.alive:
+                continue
+            for ship in ships.values():
+                if (ship.pos - powerup.pos).length() < (ship.r + powerup.r):
+                    powerup.kill()
+                    result.powerup_pickups.append(
+                        (ship.player_id, Vec(powerup.pos))
+                    )
+                    break
+
+    def _laser_vs_asteroids(
+        self,
+        lasers: list[LaserBeam],
+        asteroids: list[Asteroid],
+        result: CollisionResult,
+    ) -> None:
+        """Laser beam hits all asteroids along its path."""
+        for laser in lasers:
+            if not laser.alive or laser.resolved:
+                continue
+            for ast in asteroids:
+                if not ast.alive:
+                    continue
+                if _segment_circle_hit(laser.pos, laser.end_pos, ast.pos, ast.r):
+                    self._split_asteroid(ast, scorer_id=laser.owner_id, result=result)
+
+    def _laser_vs_ufos(
+        self,
+        lasers: list[LaserBeam],
+        ufos: list[UFO],
+        result: CollisionResult,
+    ) -> None:
+        """Laser beam destroys all UFOs along its path."""
+        for laser in lasers:
+            if not laser.alive or laser.resolved:
+                continue
+            for ufo in ufos:
+                if not ufo.alive:
+                    continue
+                if _segment_circle_hit(laser.pos, laser.end_pos, ufo.pos, float(ufo.r)):
+                    score = (
+                        C.UFO_SMALL["score"] if ufo.small else C.UFO_BIG["score"]
+                    )
+                    result.score_deltas[laser.owner_id] = (
+                        result.score_deltas.get(laser.owner_id, 0) + score
+                    )
+                    self._destroy_ufo(ufo, result)
+
+    def _laser_vs_ships(
+        self,
+        lasers: list[LaserBeam],
+        ships: dict[PlayerId, Ship],
+        result: CollisionResult,
+    ) -> None:
+        """Laser beam kills enemy ships it crosses (deathmatch frag)."""
+        for laser in lasers:
+            if not laser.alive or laser.resolved:
+                continue
+            for ship in ships.values():
+                if ship.player_id == laser.owner_id:
+                    continue
+                if ship.invuln.active or ship.shield.active:
+                    continue
+                if _segment_circle_hit(laser.pos, laser.end_pos, ship.pos, float(ship.r)):
+                    result.score_deltas[laser.owner_id] = (
+                        result.score_deltas.get(laser.owner_id, 0) + C.FRAG_SCORE
+                    )
+                    result.frag_deltas[laser.owner_id] = (
+                        result.frag_deltas.get(laser.owner_id, 0) + 1
+                    )
+                    result.ship_deaths.append(ship.player_id)
 
     def _split_asteroid(
         self,

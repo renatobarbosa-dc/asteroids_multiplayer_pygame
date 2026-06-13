@@ -1,10 +1,12 @@
 """Client-side rendering (pygame)."""
 
+import math
+
 import pygame as pg
 
 from client.camera import Camera
 from core import config as C
-from core.entities import UFO, Asteroid, Bullet, Particle, Ship
+from core.entities import UFO, Asteroid, Bullet, LaserBeam, LaserPowerup, Particle, Ship
 from core.scene import SceneState
 from core.utils import Vec, angle_to_vec
 
@@ -54,6 +56,10 @@ class Renderer:
             self._draw_asteroid(asteroid)
         for ufo in world.ufos:
             self._draw_ufo(ufo)
+        for powerup in getattr(world, "powerups", []):
+            self._draw_powerup(powerup)
+        for laser in getattr(world, "lasers", []):
+            self._draw_laser_beam(laser)
         for ship in world.ships.values():
             self._draw_ship(ship)
             self._draw_ship_name(ship, world)
@@ -182,6 +188,8 @@ class Renderer:
             pg.draw.circle(
                 self.screen, color, (cx, cy), int(visual_r + 12), width=2
             )
+        if ship.laser.active:
+            self._draw_laser_countdown(cx, cy, visual_r, ship.laser.remaining)
 
     def _draw_ship_name(self, ship: Ship, world: object) -> None:
         """Render the display name centered just below the ship.
@@ -199,6 +207,42 @@ class Renderer:
         sx, sy = self.camera.world_to_screen(anchor_world)
         sx -= label.get_width() // 2
         self.screen.blit(label, (sx, sy))
+
+    def _draw_powerup(self, powerup: LaserPowerup) -> None:
+        """Draw the laser powerup as a pulsing cyan circle with a cross."""
+        CYAN = (0, 230, 230)
+        cx, cy = self.camera.world_to_screen(powerup.pos)
+        base_r = max(int(powerup.r * self.camera.scale), 5)
+        pulse = math.sin(powerup.ttl * math.pi * 4) * 0.15 + 0.85
+        r = max(4, int(base_r * pulse))
+        pg.draw.circle(self.screen, CYAN, (cx, cy), r, width=1)
+        half = r // 2
+        pg.draw.line(self.screen, CYAN, (cx - half, cy), (cx + half, cy), 1)
+        pg.draw.line(self.screen, CYAN, (cx, cy - half), (cx, cy + half), 1)
+
+    def _draw_laser_beam(self, laser: LaserBeam) -> None:
+        """Draw the laser beam, fading out as TTL expires."""
+        color = color_for_player(laser.owner_id, self.config.PLAYER_COLORS)
+        alpha = max(0.0, laser.ttl / self.config.LASER_BEAM_TTL)
+        draw_color = tuple(int(c * alpha) for c in color)
+        start = self.camera.world_to_screen(laser.pos)
+        end = self.camera.world_to_screen(laser.end_pos)
+        pg.draw.line(self.screen, draw_color, start, end, 2)
+
+    def _draw_laser_countdown(
+        self, cx: int, cy: int, visual_r: float, remaining: float
+    ) -> None:
+        """Draw an arc around the ship representing remaining laser duration."""
+        CYAN = (0, 230, 230)
+        radius = int(visual_r + 20)
+        frac = min(1.0, remaining / self.config.LASER_DURATION)
+        if frac <= 0.0:
+            return
+        stop_angle = math.pi / 2
+        start_angle = stop_angle - math.tau * frac
+        rect = pg.Rect(0, 0, radius * 2, radius * 2)
+        rect.center = (cx, cy)
+        pg.draw.arc(self.screen, CYAN, rect, start_angle, stop_angle, 2)
 
     def _draw_ufo(self, ufo: UFO) -> None:
         cx, cy = self.camera.world_to_screen(ufo.pos)
