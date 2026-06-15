@@ -35,6 +35,7 @@ def snapshot_to_world(snap: dict[str, Any], world: World) -> None:
             Vec(a["vx"], a["vy"]),
             a["size"],
             poly_seed=a["poly_seed"],
+            red=a.get("red", False),
         )
         for a in snap["asteroids"]
     ]
