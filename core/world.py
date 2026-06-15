@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from random import uniform
+from random import random, uniform
 
 from core import config as C
 from core.collisions import CollisionManager
@@ -41,7 +41,6 @@ class World:
         self.particles: list[Particle] = []
         self.powerups: list[LaserPowerup] = []
         self.lasers: list[LaserBeam] = []
-
         self.scores: dict[PlayerId, int] = {}
         self.lives: dict[PlayerId, int] = {}
         self.deaths: dict[PlayerId, int] = {}
@@ -60,7 +59,6 @@ class World:
         # the match is running, latched once the match ends.
         self.match_timer: Countdown = Countdown(0.0)
         self.winner_id: int | None = None
-
         self.events: list[str] = []
         # Particle-spawning events recorded each tick; the server ships them
         # in the snapshot so the networked client can recreate visuals
@@ -71,9 +69,7 @@ class World:
         self.laser_events: list[tuple[int, Vec, Vec]] = []
         self.powerup_timer = Countdown(C.LASER_POWERUP_SPAWN_EVERY)
         self._collision_mgr = CollisionManager()
-
         self.game_over = False
-
         # Single-player keeps the implicit local ship; server and networked
         # client opt out and let real connections drive ship lifecycle.
         if spawn_default_player:
@@ -101,7 +97,6 @@ class World:
             pos = Vec(C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2)
         ship = Ship(player_id, pos)
         ship.invuln.reset(C.SAFE_SPAWN_TIME)
-
         self.ships[player_id] = ship
         self.scores[player_id] = 0
         self.lives[player_id] = C.START_LIVES
@@ -130,9 +125,7 @@ class World:
     def start_wave(self) -> None:
         self.wave += 1
         count = C.WAVE_BASE_COUNT + self.wave
-
         ship_positions = [s.pos for s in self.ships.values()]
-
         for _ in range(count):
             pos = rand_edge_pos()
             while any(
@@ -140,14 +133,17 @@ class World:
                 for sp in ship_positions
             ):
                 pos = rand_edge_pos()
-
             ang = uniform(0, math.tau)
             speed = uniform(C.AST_VEL_MIN, C.AST_VEL_MAX)
             vel = Vec(math.cos(ang), math.sin(ang)) * speed
-            self.spawn_asteroid(pos, vel, "L")
+            # Cada meteoro grande tem RED_ASTEROID_CHANCE de nascer vermelho.
+            is_red = random() < C.RED_ASTEROID_CHANCE
+            self.spawn_asteroid(pos, vel, "L", red=is_red)
 
-    def spawn_asteroid(self, pos: Vec, vel: Vec, size: str) -> None:
-        self.asteroids.append(Asteroid(pos, vel, size))
+    def spawn_asteroid(
+        self, pos: Vec, vel: Vec, size: str, red: bool = False
+    ) -> None:
+        self.asteroids.append(Asteroid(pos, vel, size, red=red))
 
     def spawn_ufo(self) -> None:
         small = uniform(0, 1) < 0.5
@@ -202,19 +198,14 @@ class World:
         commands_by_player_id: dict[PlayerId, PlayerCommand],
     ) -> None:
         self.begin_frame()
-
         if self.game_over:
             return
-
         if self.match_state == "lobby":
             self._maybe_start_match()
             return
-
         if self.match_state == "ended":
             return
-
         self._apply_commands(dt, commands_by_player_id)
-
         for ship in self.ships.values():
             ship.update(dt)
         for asteroid in self.asteroids:
@@ -227,7 +218,6 @@ class World:
             powerup.update(dt)
         for laser in self.lasers:
             laser.update(dt)
-
         self._update_ufos(dt)
         self._update_timers(dt)
         self._update_respawns(dt)
@@ -245,16 +235,13 @@ class World:
             ship = self.get_ship(player_id)
             if ship is None:
                 continue
-
             if cmd.hyperspace:
                 ship.hyperspace(self._find_safe_hyperspace_pos(ship))
                 self.scores[player_id] = max(
                     0, self.scores[player_id] - C.HYPERSPACE_COST
                 )
-
             if cmd.shield and ship.try_activate_shield():
                 self.events.append("shield_on")
-
             shot = ship.apply_command(cmd, dt, self.bullets)
             if isinstance(shot, LaserBeam):
                 self.lasers.append(shot)
@@ -274,7 +261,6 @@ class World:
             ufo.update(dt)
             if not ufo.alive:
                 continue
-
             bullet = ufo.try_fire()
             if bullet is not None:
                 self.bullets.append(bullet)
@@ -370,7 +356,6 @@ class World:
     def _spawn_laser_powerup(self) -> None:
         """Spawn a laser powerup near an active ship."""
         alive_ships = list(self.ships.values())
-
         if alive_ships:
             ship = alive_ships[int(uniform(0, len(alive_ships)))]
             offset = Vec(
@@ -380,13 +365,11 @@ class World:
             pos = wrap_pos(ship.pos + offset)
         else:
             pos = Vec(uniform(0, C.WORLD_WIDTH), uniform(0, C.WORLD_HEIGHT))
-
         self.powerups.append(LaserPowerup(pos, Vec(0, 0)))
 
     def _maybe_start_next_wave(self, dt: float) -> None:
         if self.asteroids:
             return
-
         if self.wave_cool.tick(dt):
             self.start_wave()
             self.wave_cool.reset(C.WAVE_DELAY)
@@ -400,30 +383,23 @@ class World:
             self.powerups,
             self.lasers,
         )
-
         self.events.extend(result.events)
-
         for player_id, delta in result.score_deltas.items():
             if player_id in self.scores:
                 self.scores[player_id] += delta
                 self._maybe_award_extra_life(player_id)
-
         for player_id, delta in result.frag_deltas.items():
             if player_id in self.frags:
                 self.frags[player_id] += delta
-
         for pos, vel, size in result.asteroids_to_spawn:
             self.spawn_asteroid(pos, vel, size)
-
         for pos, kind in result.particles_to_spawn:
             self._spawn_particles(pos, kind)
-
         for player_id, _ in result.powerup_pickups:
             ship = self.get_ship(player_id)
             if ship is not None:
                 ship.laser.reset(C.LASER_DURATION)
                 self.events.append("laser_pickup")
-
         for player_id in result.ship_deaths:
             ship = self.get_ship(player_id)
             if ship is not None:
@@ -446,13 +422,11 @@ class World:
     def _ship_die(self, ship: Ship) -> None:
         pid = ship.player_id
         self.events.append("ship_explosion")
-
         if self.deathmatch:
             self.deaths[pid] = self.deaths.get(pid, 0) + 1
             self.ships.pop(pid, None)
             self.respawning[pid] = Countdown(C.RESPAWN_DELAY)
             return
-
         # Single-player: respawn-in-place with a life consumed.
         self.lives[pid] = self.lives[pid] - 1
         ship.pos.xy = (C.WORLD_WIDTH / 2, C.WORLD_HEIGHT / 2)
@@ -460,7 +434,6 @@ class World:
         ship.angle = -90.0
         ship.invuln.reset(C.SAFE_SPAWN_TIME)
         ship.laser.reset(0.0)
-
         if all(v <= 0 for v in self.lives.values()):
             self.game_over = True
 

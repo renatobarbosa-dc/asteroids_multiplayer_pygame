@@ -155,7 +155,8 @@ class Renderer:
             (ox + int(p.x * scale), oy + int(p.y * scale))
             for p in asteroid.poly
         ]
-        pg.draw.polygon(self.screen, self.config.WHITE, points, width=1)
+        color = self.config.RED_ASTEROID_COLOR if asteroid.red else self.config.WHITE
+        pg.draw.polygon(self.screen, color, points, width=1)
 
     def _draw_ship(self, ship: Ship) -> None:
         color = color_for_player(ship.player_id, self.config.PLAYER_COLORS)
