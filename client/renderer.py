@@ -6,7 +6,7 @@ import pygame as pg
 
 from client.camera import Camera
 from core import config as C
-from core.entities import UFO, Asteroid, Bullet, LaserBeam, LaserPowerup, Particle, Ship
+from core.entities import UFO, Asteroid, Bullet, LaserBeam, LaserPowerup, Particle, Shrapnel, Ship
 from core.scene import SceneState
 from core.utils import Vec, angle_to_vec
 
@@ -52,6 +52,8 @@ class Renderer:
             self._draw_particle(particle)
         for bullet in world.bullets:
             self._draw_bullet(bullet)
+        for frag in getattr(world, "shrapnel", []):
+            self._draw_shrapnel(frag)
         for asteroid in world.asteroids:
             self._draw_asteroid(asteroid)
         for ufo in world.ufos:
@@ -146,7 +148,25 @@ class Renderer:
     def _draw_particle(self, particle: Particle) -> None:
         sx, sy = self.camera.world_to_screen(particle.pos)
         rect = pg.Rect(sx, sy, 2, 2)
-        self.screen.fill(self.config.WHITE, rect)
+        color = getattr(particle, "color", self.config.WHITE)
+        self.screen.fill(color, rect)
+
+    def _draw_shrapnel(self, frag: Shrapnel) -> None:
+        """Draw a shrapnel fragment as a glowing orange line (streak effect)."""
+        cx, cy = self.camera.world_to_screen(frag.pos)
+        # Trail: draw a short line opposite to velocity direction
+        speed = frag.vel.length()
+        if speed > 0:
+            streak_len = max(4, int(10 * self.camera.scale))
+            nx = -frag.vel.x / speed
+            ny = -frag.vel.y / speed
+            ex, ey = int(cx + nx * streak_len), int(cy + ny * streak_len)
+            # Outer glow (darker orange)
+            pg.draw.line(self.screen, (180, 80, 0), (cx, cy), (ex, ey), 3)
+            # Inner bright core
+            pg.draw.line(self.screen, (255, 180, 40), (cx, cy), (ex, ey), 1)
+        r = max(2, int(frag.r * self.camera.scale))
+        pg.draw.circle(self.screen, (255, 120, 20), (cx, cy), r)
 
     def _draw_asteroid(self, asteroid: Asteroid) -> None:
         ox, oy = self.camera.world_to_screen(asteroid.pos)

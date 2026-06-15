@@ -60,6 +60,10 @@ SHIELD_COOLDOWN = 10.0
 PARTICLE_ASTEROID = (8, 60.0, 140.0, 0.6)
 PARTICLE_UFO = (12, 100.0, 200.0, 0.8)
 PARTICLE_SHIP = (16, 80.0, 220.0, 1.2)
+PARTICLE_RED_EXPLOSION = (30, 80.0, 280.0, 1.0)
+
+# Radius within which a red asteroid explosion destroys all other asteroids.
+RED_EXPLOSION_RADIUS = 180
 SHIP_NOSE_ANGLE = 140.0
 SHIP_NOSE_SCALE = 0.9
 BULLET_SPAWN_OFFSET = 6
@@ -160,3 +164,9 @@ LASER_SHOOT = "laser_shoot.wav"
 # Red Meteor
 RED_ASTEROID_CHANCE = 0.15
 RED_ASTEROID_COLOR = (220, 40, 40)
+# Red asteroid shrapnel debris
+SHRAPNEL_COUNT = 18       # fragments ejected per explosion
+SHRAPNEL_SPEED_MIN = 200.0
+SHRAPNEL_SPEED_MAX = 480.0
+SHRAPNEL_TTL = 0.7        # seconds before fragment disappears
+SHRAPNEL_RADIUS = 4       # px — bigger than a bullet (2px) so it's visible

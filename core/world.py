@@ -8,7 +8,7 @@ from random import random, uniform
 from core import config as C
 from core.collisions import CollisionManager
 from core.commands import PlayerCommand
-from core.entities import UFO, Asteroid, Bullet, LaserBeam, LaserPowerup, Particle, Ship
+from core.entities import UFO, Asteroid, Bullet, LaserBeam, LaserPowerup, Particle, Shrapnel, Ship
 from core.utils import Countdown, Vec, rand_edge_pos, wrap_pos
 
 PlayerId = int
@@ -36,6 +36,7 @@ class World:
         self.match_state: str = "lobby" if deathmatch else "running"
         self.ships: dict[PlayerId, Ship] = {}
         self.bullets: list[Bullet] = []
+        self.shrapnel: list[Shrapnel] = []
         self.asteroids: list[Asteroid] = []
         self.ufos: list[UFO] = []
         self.particles: list[Particle] = []
@@ -176,6 +177,8 @@ class World:
             a.pos = wrap_pos(a.pos + a.vel * dt)
         for b in self.bullets:
             b.pos += b.vel * dt
+        for s in self.shrapnel:
+            s.pos = wrap_pos(s.pos + s.vel * dt)
         for u in self.ufos:
             u.pos = wrap_pos(u.pos + u.vel * dt)
         for p in self.particles:
@@ -212,6 +215,8 @@ class World:
             asteroid.update(dt)
         for bullet in self.bullets:
             bullet.update(dt)
+        for frag in self.shrapnel:
+            frag.update(dt)
         for particle in self.particles:
             particle.update(dt)
         for powerup in self.powerups:
@@ -222,6 +227,7 @@ class World:
         self._update_timers(dt)
         self._update_respawns(dt)
         self._handle_collisions()
+        self._handle_shrapnel()
         self._maybe_end_match(dt)
         self._maybe_start_next_wave(dt)
         self._purge_dead()
@@ -393,6 +399,8 @@ class World:
                 self.frags[player_id] += delta
         for pos, vel, size in result.asteroids_to_spawn:
             self.spawn_asteroid(pos, vel, size)
+        for pos, vel in result.shrapnel_to_spawn:
+            self.shrapnel.append(Shrapnel(pos, vel))
         for pos, kind in result.particles_to_spawn:
             self._spawn_particles(pos, kind)
         for player_id, _ in result.powerup_pickups:
@@ -412,12 +420,14 @@ class World:
             "asteroid": C.PARTICLE_ASTEROID,
             "ufo": C.PARTICLE_UFO,
             "ship": C.PARTICLE_SHIP,
+            "red_explosion": C.PARTICLE_RED_EXPLOSION,
         }[kind]
+        color = C.RED_ASTEROID_COLOR if kind == "red_explosion" else (255, 255, 255)
         for _ in range(count):
             ang = uniform(0.0, math.tau)
             speed = uniform(sp_min, sp_max)
             vel = Vec(math.cos(ang), math.sin(ang)) * speed
-            self.particles.append(Particle(pos, vel, ttl))
+            self.particles.append(Particle(pos, vel, ttl, color))
 
     def _ship_die(self, ship: Ship) -> None:
         pid = ship.player_id
@@ -456,9 +466,30 @@ class World:
         self.extra_life_notice.reset(C.EXTRA_LIFE_NOTICE_TIME)
         self.events.append("extra_life")
 
+    def _handle_shrapnel(self) -> None:
+        """Resolve live shrapnel fragments against asteroids and ships each tick."""
+        if not self.shrapnel:
+            return
+        from core.collisions import CollisionResult as CR
+        sr = CR()
+        self._collision_mgr.resolve_shrapnel(
+            self.shrapnel, self.asteroids, self.ships, sr
+        )
+        self.events.extend(sr.events)
+        for pos, kind in sr.particles_to_spawn:
+            self._spawn_particles(pos, kind)
+        for pos, vel, size in sr.asteroids_to_spawn:
+            self.spawn_asteroid(pos, vel, size)
+        for player_id in sr.ship_deaths:
+            ship = self.get_ship(player_id)
+            if ship is not None:
+                self._spawn_particles(Vec(ship.pos), "ship")
+                self._ship_die(ship)
+
     def _purge_dead(self) -> None:
         """Drop dead entities at end of tick to keep lists bounded."""
         self.bullets = [b for b in self.bullets if b.alive]
+        self.shrapnel = [s for s in self.shrapnel if s.alive]
         self.asteroids = [a for a in self.asteroids if a.alive]
         self.ufos = [u for u in self.ufos if u.alive]
         self.particles = [p for p in self.particles if p.alive]

@@ -15,6 +15,7 @@ PlayerId = int
 # real PlayerId (which is always > 0); -10 instead of -1 leaves a buffer for
 # other non-player owners (e.g. environment, debug spawns) if they ever appear.
 UFO_BULLET_OWNER = -10
+SHRAPNEL_OWNER = -20  # Sentinel owner_id for red-asteroid shrapnel.
 
 
 def rotate_vec(v: Vec, deg: float) -> Vec:
@@ -50,13 +51,20 @@ class Particle(Entity):
     like a bug.
     """
 
-    __slots__ = ("pos", "vel", "ttl")
+    __slots__ = ("pos", "vel", "ttl", "color")
 
-    def __init__(self, pos: Vec, vel: Vec, ttl: float) -> None:
+    def __init__(
+        self,
+        pos: Vec,
+        vel: Vec,
+        ttl: float,
+        color: tuple[int, int, int] = (255, 255, 255),
+    ) -> None:
         super().__init__()
         self.pos = Vec(pos)
         self.vel = Vec(vel)
         self.ttl = float(ttl)
+        self.color = color
 
     def update(self, dt: float) -> None:
         self.pos += self.vel * dt
@@ -158,6 +166,32 @@ class LaserPowerup(Entity):
         self.vel = Vec(vel)
         self.ttl = float(ttl)
         self.r = int(C.LASER_POWERUP_RADIUS)
+
+    def update(self, dt: float) -> None:
+        self.pos += self.vel * dt
+        self.pos = wrap_pos(self.pos)
+        self.ttl -= dt
+        if self.ttl <= 0.0:
+            self.kill()
+
+
+
+class Shrapnel(Entity):
+    """A debris fragment ejected by a red-asteroid explosion.
+
+    Behaves like a bullet: it travels, wraps the world, and can kill ships
+    and split asteroids.  Uses SHRAPNEL_OWNER so collision code can identify
+    it without treating it as a player shot.
+    """
+
+    __slots__ = ("pos", "vel", "ttl", "r")
+
+    def __init__(self, pos: Vec, vel: Vec) -> None:
+        super().__init__()
+        self.pos = Vec(pos)
+        self.vel = Vec(vel)
+        self.ttl = float(C.SHRAPNEL_TTL)
+        self.r = int(C.SHRAPNEL_RADIUS)
 
     def update(self, dt: float) -> None:
         self.pos += self.vel * dt
