@@ -36,7 +36,7 @@ class AudioManager:
             elif ev == "asteroid_explosion":
                 self._sfx_ch.play(self.sounds.asteroid_explosion)
             elif ev == "red_explosion":
-                self._sfx_ch.play(self.sounds.ship_explosion)
+                self._sfx_ch.play(self.sounds.red_explosion)
             elif ev == "ship_explosion":
                 self._sfx_ch.play(self.sounds.ship_explosion)
             elif ev == "laser_pickup":
