@@ -142,6 +142,12 @@ LASER_DURATION = 8.0
 LASER_BEAM_TTL = 0.15
 LASER_FIRE_RATE = 0.5
 
+# Freeze powerup
+FREEZE_POWERUP_TTL = 20.0
+FREEZE_DURATION = 3.0
+FREEZE_POWERUP_DROP_CHANCE_ASTEROID = 0.07
+CYAN = (0, 255, 255)
+
 # Paths (work from any execution directory).
 # config.py lives in core/, so we go one level up to the project root.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

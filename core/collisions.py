@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from random import uniform
-
+from random import uniform, random as _random
 from core import config as C
 from core.entities import (
     UFO,
     UFO_BULLET_OWNER,
     Asteroid,
     Bullet,
+    FreezePowerup,
     LaserBeam,
     LaserPowerup,
     PlayerId,
@@ -55,6 +55,8 @@ class CollisionResult:
     particles_to_spawn: list[tuple[Vec, str]] = field(default_factory=list)
     # (player_id, powerup_pos) pairs for each laser powerup collected this tick.
     powerup_pickups: list[tuple[PlayerId, Vec]] = field(default_factory=list)
+    powerups_to_apply: list[str] = field(default_factory=list)
+    freeze_powerups_to_spawn: list[Vec] = field(default_factory=list)
 
 
 class CollisionManager:
@@ -68,10 +70,13 @@ class CollisionManager:
         ufos: list[UFO],
         powerups: list[LaserPowerup] | None = None,
         lasers: list[LaserBeam] | None = None,
+        freeze_powerups: list[FreezePowerup] | None = None
     ) -> CollisionResult:
         result = CollisionResult()
         if powerups is not None:
             self._ship_vs_powerups(ships, powerups, result)
+        if freeze_powerups is not None:
+            self._ship_vs_freeze_powerups(ships, freeze_powerups, result)
         if lasers:
             self._laser_vs_asteroids(lasers, asteroids, result)
             self._laser_vs_ufos(lasers, ufos, result)
@@ -329,6 +334,23 @@ class CollisionManager:
                     )
                     break
 
+    def _ship_vs_freeze_powerups(
+        self,
+        ships: dict[PlayerId, Ship],
+        freeze_powerups: list[FreezePowerup],
+        result: CollisionResult,
+    ) -> None:
+        """Ship overlaps freeze powerup: powerup is collected and freeze effect queued."""
+        for powerup in freeze_powerups:
+            if not powerup.alive:
+                continue
+            for ship in ships.values():
+                if (ship.pos - powerup.pos).length() < (powerup.width + ship.r):
+                    powerup.kill()
+                    result.events.append("powerup_acquired")
+                    result.powerups_to_apply.append("freeze")
+                    break
+
     def _laser_vs_asteroids(
         self,
         lasers: list[LaserBeam],
@@ -420,3 +442,6 @@ class CollisionManager:
                 uniform(C.AST_VEL_MIN, C.AST_VEL_MAX) * C.AST_SPLIT_SPEED_MULT
             )
             result.asteroids_to_spawn.append((pos, dirv * speed, new_size))
+
+        if _random() < C.FREEZE_POWERUP_DROP_CHANCE_ASTEROID:
+            result.freeze_powerups_to_spawn.append(pos)

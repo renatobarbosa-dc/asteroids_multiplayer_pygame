@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.entities import UFO, Asteroid, Bullet, LaserBeam, LaserPowerup, Ship
+from core.entities import UFO, Asteroid, Bullet, FreezePowerup, LaserBeam, LaserPowerup, Ship
 from core.utils import Countdown, Vec
 from core.world import World
 
@@ -44,6 +44,11 @@ def snapshot_to_world(snap: dict[str, Any], world: World) -> None:
         LaserPowerup(Vec(p["x"], p["y"]), Vec(p["vx"], p["vy"]), ttl=p["ttl"])
         for p in snap.get("powerups", [])
     ]
+    world.freeze_powerups = [
+        FreezePowerup(Vec(fp["x"], fp["y"]), ttl=fp["ttl"])
+        for fp in snap.get("freeze_powerups", [])
+    ]
+    world.freeze_timer.reset(snap.get("freeze_remaining", 0.0))
     for ev in snap.get("laser_events", []):
         world.lasers.append(
             LaserBeam(ev["owner_id"], Vec(ev["x"], ev["y"]), Vec(ev["ex"], ev["ey"]))

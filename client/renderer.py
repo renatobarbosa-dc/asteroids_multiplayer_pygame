@@ -6,7 +6,7 @@ import pygame as pg
 
 from client.camera import Camera
 from core import config as C
-from core.entities import UFO, Asteroid, Bullet, LaserBeam, LaserPowerup, Particle, Ship
+from core.entities import UFO, Asteroid, Bullet, FreezePowerup, LaserBeam, LaserPowerup, Particle, Ship
 from core.scene import SceneState
 from core.utils import Vec, angle_to_vec
 
@@ -47,17 +47,23 @@ class Renderer:
         self.screen.fill(self.config.BLACK)
 
     def draw_world(self, world: object) -> None:
+        frozen = (
+            getattr(world, "freeze_timer", None) is not None
+            and world.freeze_timer.active
+        )
         # Order matters: bottom layers drawn first.
         for particle in world.particles:
             self._draw_particle(particle)
         for bullet in world.bullets:
             self._draw_bullet(bullet)
         for asteroid in world.asteroids:
-            self._draw_asteroid(asteroid)
+            self._draw_asteroid(asteroid, frozen=frozen)
         for ufo in world.ufos:
-            self._draw_ufo(ufo)
+            self._draw_ufo(ufo, frozen=frozen)
         for powerup in getattr(world, "powerups", []):
             self._draw_powerup(powerup)
+        for fp in getattr(world, "freeze_powerups", []):
+            self._draw_freeze_powerup(fp)
         for laser in getattr(world, "lasers", []):
             self._draw_laser_beam(laser)
         for ship in world.ships.values():
@@ -148,14 +154,15 @@ class Renderer:
         rect = pg.Rect(sx, sy, 2, 2)
         self.screen.fill(self.config.WHITE, rect)
 
-    def _draw_asteroid(self, asteroid: Asteroid) -> None:
+    def _draw_asteroid(self, asteroid: Asteroid, frozen: bool = False) -> None:
         ox, oy = self.camera.world_to_screen(asteroid.pos)
         scale = self.camera.scale
         points = [
             (ox + int(p.x * scale), oy + int(p.y * scale))
             for p in asteroid.poly
         ]
-        pg.draw.polygon(self.screen, self.config.WHITE, points, width=1)
+        color = self.config.CYAN if frozen else self.config.WHITE
+        pg.draw.polygon(self.screen, color, points, width=1)
 
     def _draw_ship(self, ship: Ship) -> None:
         color = color_for_player(ship.player_id, self.config.PLAYER_COLORS)
@@ -220,6 +227,18 @@ class Renderer:
         pg.draw.line(self.screen, CYAN, (cx - half, cy), (cx + half, cy), 1)
         pg.draw.line(self.screen, CYAN, (cx, cy - half), (cx, cy + half), 1)
 
+    def _draw_freeze_powerup(self, powerup: FreezePowerup) -> None:
+        """Draw the freeze powerup as a cyan circle with an 'F' label."""
+        cx, cy = self.camera.world_to_screen(powerup.pos)
+        scale = self.camera.scale
+        radius = max(int(powerup.width * 0.8 * scale), 5)
+        pg.draw.circle(self.screen, self.config.CYAN, (cx, cy), radius, width=2)
+        label = self.font.render("F", True, self.config.CYAN)
+        self.screen.blit(
+            label,
+            (cx - label.get_width() // 2, cy - label.get_height() // 2),
+        )
+        
     def _draw_laser_beam(self, laser: LaserBeam) -> None:
         """Draw the laser beam, fading out as TTL expires."""
         color = color_for_player(laser.owner_id, self.config.PLAYER_COLORS)
@@ -244,7 +263,7 @@ class Renderer:
         rect.center = (cx, cy)
         pg.draw.arc(self.screen, CYAN, rect, start_angle, stop_angle, 2)
 
-    def _draw_ufo(self, ufo: UFO) -> None:
+    def _draw_ufo(self, ufo: UFO, frozen: bool = False) -> None:
         cx, cy = self.camera.world_to_screen(ufo.pos)
         scaled_r = max(int(ufo.r * self.camera.scale), 4)
         width = scaled_r * 2
@@ -252,8 +271,9 @@ class Renderer:
 
         body = pg.Rect(0, 0, width, height)
         body.center = (cx, cy)
-        pg.draw.ellipse(self.screen, self.config.WHITE, body, width=1)
+        color = self.config.CYAN if frozen else self.config.WHITE
+        pg.draw.ellipse(self.screen, color, body, width=1)
 
         cup = pg.Rect(0, 0, int(width * 0.5), int(height * 0.7))
         cup.center = (cx, cy - int(height * 0.3))
-        pg.draw.ellipse(self.screen, self.config.WHITE, cup, width=1)
+        pg.draw.ellipse(self.screen, color, cup, width=1)
