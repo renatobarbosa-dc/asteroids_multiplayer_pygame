@@ -356,9 +356,10 @@ class CollisionManager:
         ships: dict[PlayerId, "Ship"],
         result: CollisionResult,
     ) -> None:
-        """Resolve shrapnel fragments against asteroids only.
+        """Resolve shrapnel fragments against asteroids and ships.
 
         Each fragment that hits an asteroid splits it (no score).
+        Each fragment that hits a ship kills the ship (respects shield/invuln).
         Fragments are consumed on first hit.
         """
         for frag in shrapnel:
@@ -374,6 +375,15 @@ class CollisionManager:
                     break
             if not frag.alive:
                 continue
+            # vs ships
+            for ship in ships.values():
+                if ship.invuln.active:
+                    continue
+                if (ship.pos - frag.pos).length() < ship.r + frag.r:
+                    frag.kill()
+                    if not ship.shield.active:
+                        result.ship_deaths.append(ship.player_id)
+                    break
 
     def _split_asteroid(
         self,
@@ -405,6 +415,33 @@ class CollisionManager:
                 dirv = rand_unit_vec()
                 speed = uniform(C.SHRAPNEL_SPEED_MIN, C.SHRAPNEL_SPEED_MAX)
                 result.shrapnel_to_spawn.append((pos, dirv * speed))
+            # Kill ships within RED_EXPLOSION_RADIUS (respects shield/invuln).
+            if ships is not None:
+                for ship in ships.values():
+                    if ship.invuln.active:
+                        continue
+                    if (ship.pos - pos).length() < C.RED_EXPLOSION_RADIUS:
+                        if ship.shield.active:
+                            continue
+                        result.ship_deaths.append(ship.player_id)
+            # Destroy all asteroids within RED_EXPLOSION_RADIUS and award score.
+            if all_asteroids is not None:
+                for other in list(all_asteroids):
+                    if not other.alive or other is ast:
+                        continue
+                    if (other.pos - pos).length() < C.RED_EXPLOSION_RADIUS:
+                        if scorer_id is not None:
+                            result.score_deltas[scorer_id] = (
+                                result.score_deltas.get(scorer_id, 0)
+                                + C.AST_SIZES[other.size]["score"]
+                            )
+                        self._split_asteroid(
+                            other,
+                            result=result,
+                            scorer_id=scorer_id,
+                            all_asteroids=all_asteroids,
+                            ships=ships,
+                        )
             return
 
         split = C.AST_SIZES[ast.size]["split"]
