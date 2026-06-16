@@ -14,8 +14,6 @@ from core.entities import (
     LaserBeam,
     LaserPowerup,
     PlayerId,
-    SHRAPNEL_OWNER,
-    Shrapnel,
     Ship,
 )
 from core.utils import Vec, rand_unit_vec, toroidal_delta, wrap_pos
@@ -57,8 +55,6 @@ class CollisionResult:
     particles_to_spawn: list[tuple[Vec, str]] = field(default_factory=list)
     # (player_id, powerup_pos) pairs for each laser powerup collected this tick.
     powerup_pickups: list[tuple[PlayerId, Vec]] = field(default_factory=list)
-    # Shrapnel fragments spawned by red-asteroid explosions.
-    shrapnel_to_spawn: list[tuple[Vec, Vec]] = field(default_factory=list)
 
 
 class CollisionManager:
@@ -77,12 +73,12 @@ class CollisionManager:
         if powerups is not None:
             self._ship_vs_powerups(ships, powerups, result)
         if lasers:
-            self._laser_vs_asteroids(lasers, asteroids, result, ships=ships)
+            self._laser_vs_asteroids(lasers, asteroids, result)
             self._laser_vs_ufos(lasers, ufos, result)
             self._laser_vs_ships(lasers, ships, result)
             for laser in lasers:
                 laser.resolved = True
-        self._bullets_vs_asteroids(bullets, asteroids, result, ships=ships)
+        self._bullets_vs_asteroids(bullets, asteroids, result)
         self._ufo_vs_player_bullets(ufos, bullets, result)
         self._bullets_vs_ships(ships, bullets, result)
         self._ufo_vs_asteroids(ufos, asteroids, result)
@@ -144,7 +140,6 @@ class CollisionManager:
         bullets: list[Bullet],
         asteroids: list[Asteroid],
         result: CollisionResult,
-        ships: dict | None = None,
     ) -> None:
         for ast in asteroids:
             if not ast.alive:
@@ -171,7 +166,7 @@ class CollisionManager:
 
             player_bullets = [b for b in hit_bullets if b.owner_id > 0]
             scorer = player_bullets[0].owner_id if player_bullets else None
-            self._split_asteroid(ast, scorer_id=scorer, result=result, all_asteroids=asteroids, ships=ships)
+            self._split_asteroid(ast, scorer_id=scorer, result=result)
 
     def _destroy_ufo(self, ufo: UFO, result: CollisionResult) -> None:
         """Kill a UFO and emit its explosion event + particles.
@@ -224,7 +219,7 @@ class CollisionManager:
                     continue
                 if (ufo.pos - ast.pos).length() < (ufo.r + ast.r):
                     self._destroy_ufo(ufo, result)
-                    self._split_asteroid(ast, result=result, all_asteroids=asteroids)
+                    self._split_asteroid(ast, result=result)
                     break
 
     def _ship_vs_asteroids(
@@ -243,7 +238,7 @@ class CollisionManager:
                     if ship.shield.active:
                         # Shield deflects: asteroid splits, no score,
                         # ship survives.
-                        self._split_asteroid(ast, result=result, all_asteroids=asteroids)
+                        self._split_asteroid(ast, result=result)
                         continue
                     result.ship_deaths.append(ship.player_id)
                     return
@@ -339,7 +334,6 @@ class CollisionManager:
         lasers: list[LaserBeam],
         asteroids: list[Asteroid],
         result: CollisionResult,
-        ships: dict | None = None,
     ) -> None:
         """Laser beam hits all asteroids along its path."""
         for laser in lasers:
@@ -349,7 +343,7 @@ class CollisionManager:
                 if not ast.alive:
                     continue
                 if _segment_circle_hit(laser.pos, laser.end_pos, ast.pos, ast.r):
-                    self._split_asteroid(ast, scorer_id=laser.owner_id, result=result, all_asteroids=asteroids, ships=ships)
+                    self._split_asteroid(ast, scorer_id=laser.owner_id, result=result)
 
     def _laser_vs_ufos(
         self,
@@ -397,45 +391,15 @@ class CollisionManager:
                     )
                     result.ship_deaths.append(ship.player_id)
 
-    def resolve_shrapnel(
-        self,
-        shrapnel: list["Shrapnel"],
-        asteroids: list[Asteroid],
-        ships: dict[PlayerId, "Ship"],
-        result: CollisionResult,
-    ) -> None:
-        """Resolve shrapnel fragments against asteroids only.
-
-        Each fragment that hits an asteroid splits it (no score).
-        Fragments are consumed on first hit.
-        """
-        for frag in shrapnel:
-            if not frag.alive:
-                continue
-            # vs asteroids
-            for ast in asteroids:
-                if not ast.alive:
-                    continue
-                if (ast.pos - frag.pos).length() < ast.r + frag.r:
-                    frag.kill()
-                    self._split_asteroid(ast, result=result, all_asteroids=asteroids)
-                    break
-            if not frag.alive:
-                continue
-
     def _split_asteroid(
         self,
         ast: Asteroid,
         result: CollisionResult,
         scorer_id: PlayerId | None = None,
-        all_asteroids: list[Asteroid] | None = None,
-        ships: dict | None = None,
     ) -> None:
         """Split or destroy an asteroid.
 
         scorer_id=None means no score is awarded (e.g. UFO-asteroid collision).
-        If ast.red is True, the asteroid explodes and destroys all asteroids
-        and ships within RED_EXPLOSION_RADIUS instead of splitting.
         """
         if scorer_id is not None:
             result.score_deltas[scorer_id] = (
@@ -443,19 +407,10 @@ class CollisionManager:
                 + C.AST_SIZES[ast.size]["score"]
             )
 
+        split = C.AST_SIZES[ast.size]["split"]
         pos = Vec(ast.pos)
         ast.kill()
 
-        if ast.red:
-            result.events.append("red_explosion")
-            # Eject shrapnel fragments in all directions.
-            for _ in range(C.SHRAPNEL_COUNT):
-                dirv = rand_unit_vec()
-                speed = uniform(C.SHRAPNEL_SPEED_MIN, C.SHRAPNEL_SPEED_MAX)
-                result.shrapnel_to_spawn.append((pos, dirv * speed))
-            return
-
-        split = C.AST_SIZES[ast.size]["split"]
         result.events.append("asteroid_explosion")
         result.particles_to_spawn.append((pos, "asteroid"))
 

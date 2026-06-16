@@ -139,7 +139,6 @@ def world_to_snapshot(
                 "vy": _r(a.vel.y),
                 "size": a.size,
                 "poly_seed": a.poly_seed,
-                "red": a.red,
             }
             for a in world.asteroids
         ],

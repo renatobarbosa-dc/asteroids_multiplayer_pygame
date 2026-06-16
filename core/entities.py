@@ -15,7 +15,6 @@ PlayerId = int
 # real PlayerId (which is always > 0); -10 instead of -1 leaves a buffer for
 # other non-player owners (e.g. environment, debug spawns) if they ever appear.
 UFO_BULLET_OWNER = -10
-SHRAPNEL_OWNER = -20  # Sentinel owner_id for red-asteroid shrapnel.
 
 
 def rotate_vec(v: Vec, deg: float) -> Vec:
@@ -51,20 +50,13 @@ class Particle(Entity):
     like a bug.
     """
 
-    __slots__ = ("pos", "vel", "ttl", "color")
+    __slots__ = ("pos", "vel", "ttl")
 
-    def __init__(
-        self,
-        pos: Vec,
-        vel: Vec,
-        ttl: float,
-        color: tuple[int, int, int] = (255, 255, 255),
-    ) -> None:
+    def __init__(self, pos: Vec, vel: Vec, ttl: float) -> None:
         super().__init__()
         self.pos = Vec(pos)
         self.vel = Vec(vel)
         self.ttl = float(ttl)
-        self.color = color
 
     def update(self, dt: float) -> None:
         self.pos += self.vel * dt
@@ -175,32 +167,6 @@ class LaserPowerup(Entity):
             self.kill()
 
 
-
-class Shrapnel(Entity):
-    """A debris fragment ejected by a red-asteroid explosion.
-
-    Behaves like a bullet: it travels, wraps the world, and can kill ships
-    and split asteroids.  Uses SHRAPNEL_OWNER so collision code can identify
-    it without treating it as a player shot.
-    """
-
-    __slots__ = ("pos", "vel", "ttl", "r")
-
-    def __init__(self, pos: Vec, vel: Vec) -> None:
-        super().__init__()
-        self.pos = Vec(pos)
-        self.vel = Vec(vel)
-        self.ttl = float(C.SHRAPNEL_TTL)
-        self.r = int(C.SHRAPNEL_RADIUS)
-
-    def update(self, dt: float) -> None:
-        self.pos += self.vel * dt
-        self.pos = wrap_pos(self.pos)
-        self.ttl -= dt
-        if self.ttl <= 0.0:
-            self.kill()
-
-
 class Asteroid(Entity):
     """Asteroid with irregular polygon shape.
 
@@ -209,13 +175,9 @@ class Asteroid(Entity):
     the same shape on each frame instead of jittering at the snapshot
     rate. Default ``None`` generates a fresh seed — used by single-player
     and tests.
-
-    ``red`` marks a "meteoro vermelho": a cosmetic variant the renderer
-    draws in red. Defaults to ``False`` so existing callers (snapshot
-    rebuild, tests, splits) are unaffected.
     """
 
-    __slots__ = ("pos", "vel", "size", "r", "poly_seed", "poly", "red")
+    __slots__ = ("pos", "vel", "size", "r", "poly_seed", "poly")
 
     def __init__(
         self,
@@ -223,7 +185,6 @@ class Asteroid(Entity):
         vel: Vec,
         size: str,
         poly_seed: int | None = None,
-        red: bool = False,
     ) -> None:
         super().__init__()
         self.pos = Vec(pos)
@@ -234,7 +195,6 @@ class Asteroid(Entity):
             poly_seed if poly_seed is not None else randrange(2**31)
         )
         self.poly = self._make_poly()
-        self.red = red
 
     def _make_poly(self) -> list[Vec]:
         steps = C.AST_POLY_STEPS[self.size]
@@ -297,25 +257,33 @@ class Ship(Entity):
             self.angle -= C.SHIP_TURN_SPEED * dt
         elif cmd.rotate_right and not cmd.rotate_left:
             self.angle += C.SHIP_TURN_SPEED * dt
+
         if cmd.thrust:
             self.vel += angle_to_vec(self.angle) * C.SHIP_THRUST * dt
+
         self.vel *= C.SHIP_FRICTION
+
         if cmd.shoot:
             return self._try_fire(bullets)
+
         return None
 
     def _try_fire(self, bullets: list[Bullet]) -> "Bullet | LaserBeam | None":
         if self.cool.active:
             return None
+
         dirv = angle_to_vec(self.angle)
         spawn = self.pos + dirv * (self.r + C.BULLET_SPAWN_OFFSET)
+
         if self.laser.active:
             end = _laser_end_pos(spawn, dirv)
             self.cool.reset(C.LASER_FIRE_RATE)
             return LaserBeam(self.player_id, spawn, end)
+
         count = sum(1 for b in bullets if b.owner_id == self.player_id)
         if count >= C.MAX_BULLETS_PER_PLAYER:
             return None
+
         vel = self.vel + dirv * C.SHIP_BULLET_SPEED
         self.cool.reset(C.SHIP_FIRE_RATE)
         return Bullet(self.player_id, spawn, vel, ttl=C.BULLET_TTL)
@@ -340,6 +308,7 @@ class Ship(Entity):
         self.shield.tick(dt)
         self.shield_cd.tick(dt)
         self.laser.tick(dt)
+
         self.pos += self.vel * dt
         self.pos = wrap_pos(self.pos)
 
@@ -348,6 +317,7 @@ class Ship(Entity):
         dirv = angle_to_vec(self.angle)
         left = angle_to_vec(self.angle + C.SHIP_NOSE_ANGLE)
         right = angle_to_vec(self.angle - C.SHIP_NOSE_ANGLE)
+
         p1 = self.pos + dirv * self.r
         p2 = self.pos + left * self.r * C.SHIP_NOSE_SCALE
         p3 = self.pos + right * self.r * C.SHIP_NOSE_SCALE
@@ -379,12 +349,15 @@ class UFO(Entity):
         self.small = small
         cfg = C.UFO_SMALL if small else C.UFO_BIG
         self.r = int(cfg["r"])
+
         self.pos = Vec(pos)
         self.vel = Vec(0, 0)
         self.speed = float(C.UFO_SPEED_SMALL if small else C.UFO_SPEED_BIG)
         self.cool = Countdown()
         self.move_dir: Vec | None = None
+
         self.target_pos: Vec | None = None
+
         # When reconstructing a UFO from a server snapshot we keep pos/vel
         # exactly as received; the crossing/pursue setup would otherwise
         # randomize them.
@@ -401,6 +374,7 @@ class UFO(Entity):
                 math.sin(math.radians(ang)),
             )
             return
+
         to_target = Vec(target_pos) - self.pos
         if to_target.length_squared() < 1e-6:
             ang = uniform(0.0, 360.0)
@@ -409,11 +383,13 @@ class UFO(Entity):
                 math.sin(math.radians(ang)),
             )
             return
+
         self.move_dir = to_target.normalize()
 
     def _setup_crossing_if_needed(self) -> None:
         if self.small:
             return
+
         mode = choice(["h", "v", "d"])
         if mode == "h":
             y = uniform(0, C.WORLD_HEIGHT)
@@ -421,12 +397,14 @@ class UFO(Entity):
             self.pos = Vec(0 if left_to_right else C.WORLD_WIDTH, y)
             self.vel = Vec(1 if left_to_right else -1, 0) * self.speed
             return
+
         if mode == "v":
             x = uniform(0, C.WORLD_WIDTH)
             top_to_bottom = uniform(0, 1) < 0.5
             self.pos = Vec(x, 0 if top_to_bottom else C.WORLD_HEIGHT)
             self.vel = Vec(0, 1 if top_to_bottom else -1) * self.speed
             return
+
         corners = [
             Vec(0, 0),
             Vec(C.WORLD_WIDTH, 0),
@@ -443,6 +421,7 @@ class UFO(Entity):
 
     def update(self, dt: float) -> None:
         self.cool.tick(dt)
+
         if self.small:
             self._update_pursue(dt)
         else:
@@ -451,6 +430,7 @@ class UFO(Entity):
     def _update_pursue(self, dt: float) -> None:
         if self.move_dir is not None:
             self.vel = self.move_dir * self.speed
+
         self.pos += self.vel * dt
         self._kill_if_outside_screen()
 
@@ -468,9 +448,11 @@ class UFO(Entity):
     def try_fire(self) -> Bullet | None:
         if self.cool.active:
             return None
+
         target_pos = self.target_pos
         if target_pos is None:
             return None
+
         if not self.small and random() < C.UFO_BIG_MISS_CHANCE:
             ang = uniform(0.0, 360.0)
             dirv = Vec(
@@ -482,14 +464,18 @@ class UFO(Entity):
             if to_target.length_squared() < 1e-6:
                 return None
             dirv = to_target.normalize()
-            jitter = (
-                C.UFO_AIM_JITTER_DEG_SMALL
-                if self.small
-                else C.UFO_AIM_JITTER_DEG_BIG
-            )
-            dirv = rotate_vec(dirv, uniform(-jitter, jitter))
+
+        jitter = (
+            C.UFO_AIM_JITTER_DEG_SMALL
+            if self.small
+            else C.UFO_AIM_JITTER_DEG_BIG
+        )
+        dirv = rotate_vec(dirv, uniform(-jitter, jitter))
+
         vel = dirv * C.UFO_BULLET_SPEED
         ttl = float(C.UFO_BULLET_TTL)
+
         rate = C.UFO_FIRE_RATE_SMALL if self.small else C.UFO_FIRE_RATE_BIG
         self.cool.reset(rate)
+
         return Bullet(UFO_BULLET_OWNER, self.pos, vel, ttl=ttl)
